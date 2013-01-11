@@ -3,17 +3,17 @@
             [me.raynes.cegdown :as md]
             [me.raynes.laser :as laser]
             [fs.core :as fs])
-  (:use clj-time.format
-        [clj-time.core :only (year month)]))
+  (:use [clj-time.core :only (year month)]
+        clj-time.format))
 
 (defn regex-file-seq
   "Lazily filter a directory based on regex."
-  [regex dir]
-  (filter #(re-find regex (.getPath %)) (file-seq (io/file dir))))
+  [regex in-dir]
+  (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
 
-(defn md-files [dir]
-  "Return list of markdown files from dir"
-  (regex-file-seq #".*\.(md|markdown)" dir))
+(defn md-files [in-dir]
+  "Return a seq of markdown files from in-dir"
+  (regex-file-seq #".*\.(md|markdown)" in-dir))
 
 (defn split-file [path]
   (let [content (slurp path)
@@ -32,41 +32,51 @@
 (defn file->html [path template]
   (let [t (slurp template)]
     (laser/document (laser/parse t)
-                    (laser/element= :title)
+                    (laser/or (laser/element= :title) (laser/element= :h1))
                     (laser/content (:title (metadata path)))
                     (laser/class= "content")
                     (laser/html-content
                      (md/to-html (second (split-file path)) [:fenced-code-blocks])))))
 
-(defn html-filename [path]
-  (str (first (clojure.string/split path #"\.")) ".html"))
-
-(defn slugify [date htmlfile]
-  (let [parsed-date (parse date)]
-    ;parsed-date
-    (str "blog/" (year parsed-date) "/"  (month parsed-date) "/" htmlfile)
-    ))
+(defn slugify [file]
+  (let [metadata (metadata file)
+        date (:date metadata)
+        parsed-date (parse date)]
+    (str "/blog/"
+         (year parsed-date) "/"
+         (month parsed-date) "/"
+         (-> (:title metadata)
+             .toLowerCase
+             space->dash))))
 
 (defn clean-dir [dir]
   (fs/delete-dir dir))
 
+(defn space->dash [s]
+  (clojure.string/replace s " " "-"))
+
 (defn prepare-dirs [dir output]
   (let [output-structure (reduce (fn [dirs file]
-                                   (let [date (parse (:date (metadata file)))
-                                         slug (str (year date) "/" (month date))]
-                                     (conj dirs (str output "/blog/" slug))))
+                                   (let [slug (slugify file)]
+                                     (conj dirs (str output slug))))
                                  #{} (md-files dir))]
-    (println output-structure)
+    ;;(println output-structure)
     (map fs/mkdirs output-structure)))
 
-(defn process-dir [dir output]
-  (do (clean-dir output)
-      (prepare-dirs dir output)
+(defn process-dir [in-dir output]
+  (do
+      (prepare-dirs in-dir output)
       (map (fn [file]
-             (spit (str output "/" (slugify (:date (metadata file))
-                                            (html-filename (.getName file))))
-                   (file->html file "./mdrand/post.html")))
-           (md-files dir))))
+             (let [slug (slugify file)]
+               (spit (str output "/" slug "/index.html")
+                     (file->html file (str in-dir "/templates/post.html")))))
+           (md-files in-dir))))
+
+(defn all-posts [in-dir]
+  (map (fn [file] (assoc (metadata file) :file file))  (md-files in-dir)))
+
+(defn generate-index [template in-dir]
+  )
 
 (defn foo
   "I don't do a whole lot."
