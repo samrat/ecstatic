@@ -25,7 +25,12 @@
     (reduce (fn [h [_ k v]]
               (let [key (keyword (.toLowerCase k))]
                 (if (not (h key))
-                  (assoc h key v)
+                  ;; parse post tags
+                  (if (= key :tags)
+                    (assoc h key (->> (clojure.string/split v #",")
+                                      (map #(.trim %))
+                                      vec))
+                    (assoc h key v))
                   h)))
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
@@ -34,7 +39,7 @@
     (laser/document (laser/parse t)
                     (laser/or (laser/element= :title) (laser/element= :h1))
                     (laser/content (:title (metadata path)))
-                    (laser/class= "content")
+                    (laser/id= "content")
                     (laser/html-content
                      (md/to-html (second (split-file path)) [:fenced-code-blocks])))))
 
@@ -60,23 +65,46 @@
                                    (let [slug (slugify file)]
                                      (conj dirs (str output slug))))
                                  #{} (md-files dir))]
-    ;;(println output-structure)
-    (map fs/mkdirs output-structure)))
+    (doall (map fs/mkdirs output-structure))))
+
+(defn write-files [in-dir output]
+  (doall (map (fn [file]
+                (let [slug (slugify file)]
+                  (spit (str output "/" slug "/index.html")
+                        (file->html file (str in-dir "/templates/post1.html")))))
+              (md-files in-dir))))
 
 (defn process-dir [in-dir output]
-  (do
-      (prepare-dirs in-dir output)
-      (map (fn [file]
-             (let [slug (slugify file)]
-               (spit (str output "/" slug "/index.html")
-                     (file->html file (str in-dir "/templates/post.html")))))
-           (md-files in-dir))))
+  (let [tmp (.getPath (fs/temp-dir "ecst"))]
+    (prepare-dirs in-dir tmp)
+    (write-files in-dir tmp)
+    (copy-resources in-dir tmp)
+    (clean-dir output)
+    (fs/copy-dir tmp output)
+    (fs/delete-dir tmp)))
 
 (defn all-posts [in-dir]
   (map (fn [file] (assoc (metadata file) :file file))  (md-files in-dir)))
 
+(defn all-tags [posts]
+  (reduce conj #{} (map )))
+
+(defn posts-in-tag [posts]
+  (reduce (fn [p post]
+            (println p)
+            (let [tags (:tags post)]
+              (for [tag tags]
+                (assoc-in p [0 tag] post))))
+          [] posts))
+
+(defn copy-resources [in-dir output]
+  (fs/copy-dir (str in-dir "/resources") (str output "/resources")))
+
 (defn generate-index [template in-dir]
-  )
+  (let [t (slurp template)]
+    (laser/document (laser/parse t)
+                    (laser/id= "content")
+                    )))
 
 (defn foo
   "I don't do a whole lot."
