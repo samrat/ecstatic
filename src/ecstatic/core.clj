@@ -154,7 +154,9 @@
                                           (conj p {:title (:title metadata)
                                                    :pubDate (to-date date)
                                                    :author (:site-author config)
-                                                   :description (content post)})))
+                                                   :description
+                                                   (md/to-html (content post)
+                                                               [:fenced-code-blocks])})))
                                       [{:title (:site-name config)
                                         :link (:site-url config)
                                         :description (:site-description config)
