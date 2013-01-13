@@ -7,4 +7,5 @@
                  [me.raynes/laser "0.1.14"]
                  [fs "1.3.3"]
                  [clj-time "0.4.4"]
+                 [slugger "1.0.1"]
                  [me.raynes/cegdown "0.1.0"]])
