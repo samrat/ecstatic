@@ -1,19 +1,13 @@
 (ns ecstatic.core
-  (:require [clojure.java.io :as io]
-            [me.raynes.cegdown :as md]
-            [me.raynes.laser :as laser]
-            [fs.core :as fs])
-  (:use [clj-time.core :only (year month)]
+  (:require [me.raynes.cegdown :as md]
+            [me.raynes.laser :as l]
+            [fs.core :as fs]
+            [slugger.core :as slug])
+  (:use ecstatic.io
+        [clj-time.core :only (year month)]
         clj-time.format))
 
-(defn regex-file-seq
-  "Lazily filter a directory based on regex."
-  [regex in-dir]
-  (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
-
-(defn md-files [in-dir]
-  "Return a seq of markdown files from in-dir"
-  (regex-file-seq #".*\.(md|markdown)" in-dir))
+(declare copy-resources)
 
 (defn split-file [path]
   (let [content (slurp path)
@@ -34,16 +28,17 @@
                   h)))
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
-(defn file->html [path template]
+(defn render-post [path template]
   (let [t (slurp template)]
-    (laser/document (laser/parse t)
-                    (laser/or (laser/element= :title) (laser/element= :h1))
-                    (laser/content (:title (metadata path)))
-                    (laser/id= "content")
-                    (laser/html-content
-                     (md/to-html (second (split-file path)) [:fenced-code-blocks])))))
+    (l/document (l/parse t)
+                    (l/or (l/element= :title) (l/element= :h3))
+                    (l/content (:title (metadata path)))
+                    (l/element= :article)
+                    (l/html-content
+                     (md/to-html (second (split-file path))
+                                 [:fenced-code-blocks])))))
 
-(defn slugify [file]
+(defn post-url [file]
   (let [metadata (metadata file)
         date (:date metadata)
         parsed-date (parse date)]
@@ -51,60 +46,77 @@
          (year parsed-date) "/"
          (month parsed-date) "/"
          (-> (:title metadata)
-             .toLowerCase
-             space->dash))))
-
-(defn clean-dir [dir]
-  (fs/delete-dir dir))
-
-(defn space->dash [s]
-  (clojure.string/replace s " " "-"))
+             (clojure.string/replace "+" "")
+             (slug/->slug)))))
 
 (defn prepare-dirs [dir output]
   (let [output-structure (reduce (fn [dirs file]
-                                   (let [slug (slugify file)]
+                                   (let [slug (post-url file)]
                                      (conj dirs (str output slug))))
                                  #{} (md-files dir))]
     (doall (map fs/mkdirs output-structure))))
 
 (defn write-files [in-dir output]
   (doall (map (fn [file]
-                (let [slug (slugify file)]
+                (let [slug (post-url file)]
                   (spit (str output "/" slug "/index.html")
-                        (file->html file (str in-dir "/templates/post1.html")))))
+                        (render-post file (str in-dir "/templates/post1.html")))))
               (md-files in-dir))))
 
-(defn process-dir [in-dir output]
+(defn process-posts [in-dir output]
   (let [tmp (.getPath (fs/temp-dir "ecst"))]
     (prepare-dirs in-dir tmp)
     (write-files in-dir tmp)
     (copy-resources in-dir tmp)
-    (clean-dir output)
+    (fs/delete-dir output)
     (fs/copy-dir tmp output)
     (fs/delete-dir tmp)))
 
 (defn all-posts [in-dir]
   (map (fn [file] (assoc (metadata file) :file file))  (md-files in-dir)))
 
-(defn all-tags [posts]
-  (reduce conj #{} (map )))
+(defn tag-buckets [posts]
+  (->> (reduce (fn [m post]
+                 (concat m  (interleave (:tags post) (repeat (vector post)))))
+               [] posts)
+       (partition 2)
+       (map #(hash-map (first %) (second %)))
+       (apply merge-with concat)
+       ))
 
-(defn posts-in-tag [posts]
-  (reduce (fn [p post]
-            (println p)
-            (let [tags (:tags post)]
-              (for [tag tags]
-                (assoc-in p [0 tag] post))))
-          [] posts))
+(defn all-tags [posts]
+  (->> posts
+       (map #(:tags %))
+       (apply concat)
+       (set)))
 
 (defn copy-resources [in-dir output]
   (fs/copy-dir (str in-dir "/resources") (str output "/resources")))
 
-(defn generate-index [template in-dir]
-  (let [t (slurp template)]
-    (laser/document (laser/parse t)
-                    (laser/id= "content")
-                    )))
+(defn generate-item [post]
+  (let [item (:title post)
+        a (l/parse-fragment (str "<a>" item "</a>"))
+        link (post-url (:file post))
+        html (l/fragment-to-html (l/fragment a
+                                             (l/element= :a)
+                                             (l/attr :href link)))]
+    ;(println html)
+    html))
+
+(defn generate-index [in-dir]
+  (let [t (slurp (str in-dir "/templates/index.html"))]
+    ;; (println t)
+    (l/document (l/parse t)
+                    (l/element= :section)
+                    (fn [node]
+                      (reduce (fn [node post]
+                                (update-in node [:content]
+                                           conj (generate-item post)))
+                              node (all-posts in-dir))))))
+
+(defn write-index [in-dir output]
+  (spit (str output "/index.html")
+        (generate-index in-dir)))
 
 (defn foo
   "I don't do a whole lot."
