@@ -37,21 +37,23 @@
   "Render HTML file from Markdown file"
   (let [t (slurp (str in-dir "/templates/post.html"))
         a (l/parse-fragment "<a></a>")]
-    (l/document (l/parse t)
-                (l/class= "site-title")
-                (l/content (.toUpperCase (:site-name (config in-dir))))
-                (l/element= :title)
-                (l/content (:title (metadata path)))
-                (l/class= "entry-title")
-                (l/html-content (l/fragment a
-                                       (l/element= :a)
-                                       (l/attr :href (post-url path))
-                                       (l/element= :a)
-                                       (l/content (:title (metadata path)))))
-                (l/element= :article)
-                (l/html-content
-                 (md/to-html (content path)
-                             [:fenced-code-blocks])))))
+    (l/document
+     (l/parse t)
+     (l/class= "site-title")
+     (l/content (.toUpperCase (:site-name (config in-dir))))
+     (l/element= :title)
+     (l/content (:title (metadata path)))
+     (l/class= "entry-title")
+     (l/html-content (l/fragment
+                      a
+                      (l/element= :a)
+                      (l/attr :href (post-url path))
+                      (l/element= :a)
+                      (l/content (:title (metadata path)))))
+     (l/element= :article)
+     (l/html-content
+      (md/to-html (content path)
+                  [:fenced-code-blocks])))))
 
 (defn post-url [file]
   (let [metadata (metadata file)
@@ -148,20 +150,21 @@
 
 (defn generate-feed [posts tag config output]
   "Generate and write RSS feed."
-  (->> (apply rss/channel-xml (reduce (fn [p post]
-                                        (let [metadata (metadata post)
-                                              date (parse (:date metadata))]
-                                          (conj p {:title (:title metadata)
-                                                   :pubDate (to-date date)
-                                                   :author (:site-author config)
-                                                   :description
-                                                   (md/to-html (content post)
-                                                               [:fenced-code-blocks])})))
-                                      [{:title (:site-name config)
-                                        :link (:site-url config)
-                                        :description (:site-description config)
-                                        :lastBuildDate (new Date)}]
-                                      posts))
+  (->> (apply rss/channel-xml
+              (reduce (fn [p post]
+                        (let [metadata (metadata post)
+                              date (parse (:date metadata))]
+                          (conj p {:title (:title metadata)
+                                   :pubDate (to-date date)
+                                   :author (:site-author config)
+                                   :description
+                                   (md/to-html (content post)
+                                               [:fenced-code-blocks])})))
+                      [{:title (:site-name config)
+                        :link (:site-url config)
+                        :description (:site-description config)
+                        :lastBuildDate (new Date)}]
+                      posts))
        (spit (str output "/feeds/" tag ".xml"))))
 
 (defn generate-main-feed [in-dir output]
