@@ -1,6 +1,6 @@
 (ns ecstatic.core
   (:require [me.raynes.cegdown :as md]
-            [me.raynes.laser :as l]
+            [clostache.parser :as clostache]
             [fs.core :as fs]
             [slugger.core :as slug]
             [clj-rss.core :as rss])
@@ -12,7 +12,11 @@
 
 (declare copy-resources
          post-url
-         write-index)
+         write-index
+         generate-main-feed
+         generate-tag-feed
+         all-tags
+         all-posts)
 
 (defn metadata [path]
   "Returns map containing post metadata."
@@ -34,26 +38,25 @@
   (second (split-file path)))
 
 (defn render-post [path in-dir]
-  "Render HTML file from Markdown file"
-  (let [t (slurp (str in-dir "/templates/post.html"))
-        a (l/parse-fragment "<a></a>")]
-    (l/document
-     (l/parse t)
-     (l/class= "site-title")
-     (l/content (.toUpperCase (:site-name (config in-dir))))
-     (l/element= :title)
-     (l/content (:title (metadata path)))
-     (l/class= "entry-title")
-     (l/html-content (l/fragment
-                      a
-                      (l/element= :a)
-                      (l/attr :href (post-url path))
-                      (l/element= :a)
-                      (l/content (:title (metadata path)))))
-     (l/element= :article)
-     (l/html-content
-      (md/to-html (content path)
-                  [:fenced-code-blocks])))))
+  "Render HTML file from markdown file."
+  (let [t (slurp (str in-dir "/templates/post.html"))]
+    (clostache/render t
+                      {:site-name (:site-name (config in-dir))
+                       :post {:title (:title (metadata path))
+                              :url   (post-url path)
+                              :content (md/to-html (content path)
+                                                   [:fenced-code-blocks])}})))
+
+(defn generate-index [in-dir]
+  "Generate content for index.html"
+  (let [t (slurp (str in-dir "/templates/index.html"))]
+    (clostache/render t
+                      {:site-name (:site-name (config in-dir))
+                       :posts (all-posts in-dir)})))
+
+(defn write-index [in-dir output]
+  (spit (str output "/index.html")
+        (generate-index in-dir)))
 
 (defn post-url [file]
   (let [metadata (metadata file)
@@ -98,7 +101,10 @@
 
 (defn all-posts [in-dir]
   "List of maps containing post-info."
-  (map (fn [file] (assoc (metadata file) :file file))  (md-files in-dir)))
+  (map (fn [file]
+         (-> (assoc (metadata file) :file file)
+             (assoc :url (post-url file))))
+       (md-files in-dir)))
 
 (defn tag-buckets [posts]
   "Categorizes posts under tags.
@@ -120,33 +126,6 @@
 (defn copy-resources [in-dir output]
   "Copy in-dir/resources(which should contain images,stylesheets and js files."
   (fs/copy-dir (str in-dir "/resources") (str output "/resources")))
-
-(defn generate-item [post]
-  (let [item (:title post)
-        a (l/parse-fragment (str "<h4 class=\"article-title\"><a>" item "</a></h4>"))
-        link (post-url (:file post))
-        html (l/fragment a
-                         (l/element= :a)
-                         (l/attr :href link))]
-    html))
-
-(defn generate-index [in-dir]
-  (let [t (slurp (str in-dir "/templates/index.html"))]
-    (l/document (l/parse t)
-                (l/class= "site-title")
-                (l/content (.toUpperCase (:site-name (config in-dir))))
-                (l/element= :section)
-                (fn [node]
-                  (reduce (fn [node post]
-                            (update-in node [:content]
-                                       concat (generate-item post)))
-                          node (->> (all-posts in-dir)
-                                    (sort-by :date)
-                                    (reverse)))))))
-
-(defn write-index [in-dir output]
-  (spit (str output "/index.html")
-        (generate-index in-dir)))
 
 (defn generate-feed [posts tag config output]
   "Generate and write RSS feed."
