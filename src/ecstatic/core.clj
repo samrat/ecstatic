@@ -7,8 +7,8 @@
   (:use ecstatic.io
         [clj-time.core :only (year month)]
         clj-time.format
-        clj-time.coerce)
-  (:import java.util.Date))
+        clj-time.local
+        clj-time.coerce))
 
 (defn metadata [path]
   "Returns map containing post metadata."
@@ -44,10 +44,24 @@
 
 (defn all-posts [in-dir]
   "List of maps containing post-info."
-  (map (fn [file]
-         (-> (assoc (metadata file) :file file)
-             (assoc :url (post-url file))))
-       (md-posts in-dir)))
+  (->> (map (fn [file]
+              (-> (assoc (metadata file) :file file)
+                  (assoc :url (post-url file))))
+            (md-posts in-dir))
+       (sort-by :date)
+       (reverse)))
+
+(defn pager [posts path]
+  (let [posts (reverse posts)
+        post (first (filter #(= path (:file %)) posts))
+        i (.indexOf posts post)
+        prev (if (<= i 0)
+               nil
+               (nth posts (dec i)))
+        next (if (>= i (dec (count posts)))
+               nil
+               (nth posts (inc i)))]
+    [prev next]))
 
 (defn tag-buckets [posts]
   "Categorizes posts under tags.
@@ -66,17 +80,22 @@
        (apply concat)
        (set)))
 
-
 ;; HTML rendering
 (defn render-post [path in-dir]
   "Render HTML file from markdown file."
-  (let [t (slurp (str in-dir "/templates/post.html"))]
+  (let [t (slurp (str in-dir "/templates/post.html"))
+        [prev next] (pager (all-posts in-dir) path)]
     (clostache/render t
                       {:site-name (:site-name (config in-dir))
+                       :site-url (:site-url (config in-dir))
                        :post {:title (:title (metadata path))
                               :url   (post-url path)
+                              :date (:date (metadata path))
                               :content (md/to-html (content path)
-                                                   [:fenced-code-blocks])}})))
+                                                   [:fenced-code-blocks])}
+                       :prev (or nil prev) ;pass false if no prev item
+                       :next (or nil next)
+                       })))
 
 (defn render-page [path in-dir template]
   "Render HTML from markdown path.
@@ -114,7 +133,6 @@
                                          slug (:slug metadata)]
                                      (conj dirs (str output slug))))
                                  #{} (md-pages in-dir))]
-    (println output-structure)
     (doall (map fs/mkdirs output-structure))))
 
 (defn write-posts [in-dir output]
@@ -154,7 +172,7 @@
                       [{:title (:site-name config)
                         :link (:site-url config)
                         :description (:site-description config)
-                        :lastBuildDate (new Date)}]
+                        :lastBuildDate (to-date (local-now))}]
                       posts))
        (spit (str output "/feeds/" tag ".xml"))))
 
