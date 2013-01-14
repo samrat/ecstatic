@@ -47,7 +47,7 @@
   (map (fn [file]
          (-> (assoc (metadata file) :file file)
              (assoc :url (post-url file))))
-       (md-files in-dir)))
+       (md-posts in-dir)))
 
 (defn tag-buckets [posts]
   "Categorizes posts under tags.
@@ -78,6 +78,17 @@
                               :content (md/to-html (content path)
                                                    [:fenced-code-blocks])}})))
 
+(defn render-page [path in-dir template]
+  "Render HTML from markdown path.
+   This is the same as render-post except that you can specify a custom template.
+    template: name of file at /templates directory(eg. 'about' or 'resume')"
+  (let [t (slurp (str in-dir "/templates/" template ".html"))]
+    (clostache/render t
+                      {:site-name (:site-name (config in-dir))
+                       :page {:title (:title (metadata path))
+                              :url (post-url path)
+                              :content (md/to-html (content path))}})))
+
 (defn generate-index [in-dir]
   "Generate content for index.html"
   (let [t (slurp (str in-dir "/templates/index.html"))]
@@ -89,22 +100,39 @@
   (spit (str output "/index.html")
         (generate-index in-dir)))
 
-(defn prepare-dirs [dir output]
+(defn prepare-dirs [in-dir output]
   "Prepare directory structure."
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (post-url file)]
                                      (conj dirs (str output slug))))
-                                 #{(str output "/feeds")} (md-files dir))]
+                                 #{(str output "/feeds")} (md-posts in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
-(defn write-files [in-dir output]
+(defn prepare-pages-dirs [in-dir output]
+  (let [output-structure (reduce (fn [dirs file]
+                                   (let [metadata (metadata file)
+                                         slug (:slug metadata)]
+                                     (conj dirs (str output slug))))
+                                 #{} (md-pages in-dir))]
+    (println output-structure)
+    (doall (map fs/mkdirs output-structure))))
+
+(defn write-posts [in-dir output]
   "Write HTML files to location."
   (do (prepare-dirs in-dir output)
       (doall (map (fn [file]
                     (let [slug (post-url file)]
                       (spit (str output "/" slug "/index.html")
                             (render-post file in-dir))))
-                  (md-files in-dir)))))
+                  (md-posts in-dir)))))
+
+(defn write-pages [in-dir output]
+  (doall (map (fn [file]
+                (let [metadata (metadata file)
+                      slug (:slug metadata)]
+                  (spit (str output "/" slug "/index.html")
+                        (render-page file in-dir (:template metadata)))))
+              (md-pages in-dir))))
 
 (defn copy-resources [in-dir output]
   "Copy in-dir/resources containing js,css and images"
@@ -145,8 +173,10 @@
 (defn process-posts [in-dir output]
   "Read and create posts."
   (let [tmp (.getPath (fs/temp-dir "ecst"))]
-    (write-files in-dir tmp)
+    (write-posts in-dir tmp)
     (write-index in-dir tmp)
+    (prepare-pages-dirs in-dir tmp)
+    (write-pages in-dir tmp)
     (generate-main-feed in-dir tmp)
     (doall (map #(generate-tag-feed in-dir tmp %)
                 (all-tags (all-posts in-dir))))

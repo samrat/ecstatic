@@ -17,6 +17,12 @@
   "Return a seq of markdown files from in-dir"
   (regex-file-seq #".*\.(md|markdown)" in-dir))
 
+(defn md-posts [in-dir]
+  (md-files (str in-dir "/posts")))
+
+(defn md-pages [in-dir]
+  (md-files (str in-dir "/pages")))
+
 (defn split-file [path]
   "Return [metadata content] from a markdown file."
   (let [content (slurp path)
