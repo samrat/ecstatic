@@ -46,7 +46,10 @@
   "List of maps containing post-info."
   (->> (map (fn [file]
               (-> (assoc (metadata file) :file file)
-                  (assoc :url (post-url file))))
+                  (assoc :url (post-url file))
+                  (assoc :human-readable-date (unparse
+                                               (formatter "dd MMMMM, YYYY")
+                                               (parse (:date (metadata file)))))))
             (md-posts in-dir))
        (sort-by :date)
        (reverse)))
@@ -90,7 +93,9 @@
                        :site-url (:site-url (config in-dir))
                        :post {:title (:title (metadata path))
                               :url   (post-url path)
-                              :date (:date (metadata path))
+                              :date (unparse
+                                     (formatter "dd MMMMM, YYYY")
+                                     (parse (:date (metadata path))))
                               :content (md/to-html (content path)
                                                    [:fenced-code-blocks])}
                        :prev (or nil prev) ;pass false if no prev item
