@@ -5,6 +5,11 @@
             [slugger.core :as slug]
             [clj-rss.core :as rss])
   (:use ecstatic.io
+        [clojure.tools.cli :only (cli)]
+        ring.adapter.jetty
+        ring.middleware.file
+        ring.util.response
+        clojure.java.browse
         [clj-time.core :only (year month)]
         clj-time.format
         clj-time.local
@@ -33,14 +38,18 @@
 (defn post-url [file]
   "Return relative URL of a post."
   (let [metadata (metadata file)
+        slug (or nil (:slug metadata))
         date (:date metadata)
         parsed-date (parse date)]
-    (str "/blog/"
-         (year parsed-date) "/"
-         (month parsed-date) "/"
-         (-> (:title metadata)
-             (clojure.string/replace "+" "")
-             (slug/->slug)))))
+    (if slug slug
+      (str "/blog/"
+                  (year parsed-date) "/"
+                  (if (= (count (str (month parsed-date))) 2)
+                    (month parsed-date)
+                    (str "0" (month parsed-date))) "/"
+                  (-> (:title metadata)
+                      (clojure.string/replace "+" "")
+                      (slug/->slug))))))
 
 (defn all-posts [in-dir]
   "List of maps containing post-info."
@@ -169,6 +178,7 @@
                         (let [metadata (metadata post)
                               date (parse (:date metadata))]
                           (conj p {:title (:title metadata)
+                                   :link (str (:site-url config) (post-url post))
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
@@ -193,7 +203,7 @@
                  (config in-dir)
                  output))
 
-(defn process-posts [in-dir output]
+(defn create-site [in-dir output]
   "Read and create posts."
   (let [tmp (.getPath (fs/temp-dir "ecst"))]
     (write-posts in-dir tmp)
@@ -208,7 +218,26 @@
     (fs/copy-dir tmp output)
     (fs/delete-dir tmp)))
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+;; Run a Jetty server
+(defn serve-static-wrapper [output]
+  (defn serve-static [req] 
+    (let [mime-types {".clj" "text/plain"
+                      ".mp4" "video/mp4"
+                      ".ogv" "video/ogg"}]
+      (if-let [f (file-response (:uri req) {:root output})] 
+        (if-let [mimetype (mime-types (re-find #"\..+$" (:uri req)))] 
+          (merge f {:headers {"Content-Type" mimetype}}) 
+          f)))))
+
+(defn serve [output]
+  (do (future (run-jetty (serve-static-wrapper output) {:port 8080}))))
+
+(defn -main [& args]
+  (let [[opts _ banner ] (cli args
+                              ["-s" "--src" "Source for site."]
+                              ["-o" "--output" "Output for site."]
+                              ["-j" "--jetty" "Run jetty server"]
+                              ["-b" "--build" "Build site"])
+        {:keys [jetty build src output]} opts]
+    (cond build (create-site src output)
+          jetty (serve jetty))))
