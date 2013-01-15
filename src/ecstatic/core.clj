@@ -13,7 +13,7 @@
         clj-time.coerce))
 
 (defn metadata [path]
-  "Returns map containing post metadata."
+  "Returns map containing page metadata."
   (let [meta (first (split-file path))]
     (reduce (fn [h [_ k v]]
               (let [key (keyword (.toLowerCase k))]
@@ -27,41 +27,41 @@
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
 (defn content [path]
-  "Return the post content."
+  "Return the page content."
   (second (split-file path)))
 
 ;; Other metadata
-(defn post-url [file]
+(defn page-url [file]
   "Return relative URL of a post."
   (let [metadata (metadata file)
         slug (or nil (:slug metadata))
-        date (:date metadata)
-        parsed-date (parse date)]
+        parsed-date (or (or (parse (:date metadata)) nil)
+                        (local-now))
+        ;parsed-date (parse date)
+        ]
     (if slug slug
-      (str "/blog/"
-                  (year parsed-date) "/"
-                  (if (= (count (str (month parsed-date))) 2)
-                    (month parsed-date)
-                    (str "0" (month parsed-date))) "/"
-                  (-> (:title metadata)
-                      (clojure.string/replace "+" "")
-                      (slug/->slug))))))
+        (str "/blog/"
+             (year parsed-date) "/"
+             (if (= (count (str (month parsed-date))) 2)
+               (month parsed-date)
+               (str "0" (month parsed-date))) "/"
+               (slug/->slug (:title metadata))))))
 
-(defn all-posts [in-dir]
+(defn all-pages [in-dir]
   "List of maps containing post-info."
   (->> (map (fn [file]
               (-> (assoc (metadata file) :file file)
-                  (assoc :url (post-url file))
+                  (assoc :url (page-url file))
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
                                                (parse (:date (metadata file)))))))
-            (md-posts in-dir))
+            (md-files in-dir))
        (sort-by :date)
        (reverse)))
 
-(defn pager [posts path]
+(defn pager [posts post]
+  "Gives the previous and next posts(chronologically)."
   (let [posts (reverse posts)
-        post (first (filter #(= path (:file %)) posts))
         i (.indexOf posts post)
         prev (if (<= i 0)
                nil
@@ -89,22 +89,23 @@
        (set)))
 
 ;; HTML rendering
-(defn render-page [path in-dir & template]
+(defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
-  (let [template (or (or (first template) nil) "post")
+  (let [file (:file post)
+        template (or (or (first template) nil) "post")
         t (slurp (str in-dir "/templates/" template ".html"))
-        [prev next] (pager (all-posts in-dir) path)]
+        [prev next] (pager (all-pages in-dir) post)]
         (clostache/render t
                           {:site-name (:site-name (config in-dir))
                            :site-url (:site-url (config in-dir))
-                           :page {:title (:title (metadata path))
-                                  :url   (post-url path)
+                           :page {:title (:title (metadata file))
+                                  :url   (page-url file)
                                   :date (unparse
                                          (formatter "dd MMMMM, YYYY")
-                                         (parse (:date (metadata path))))
-                                  :content (md/to-html (content path)
+                                         (parse (:date (metadata file))))
+                                  :content (md/to-html (content file)
                                                        [:fenced-code-blocks])}
-                           :prev (or nil prev) ;pass false if no prev item
+                           :prev (or nil prev)
                            :next (or nil next)
                            })))
 
@@ -113,7 +114,7 @@
   (let [t (slurp (str in-dir "/templates/index.html"))]
     (clostache/render t
                       {:site-name (:site-name (config in-dir))
-                       :posts (all-posts in-dir)})))
+                       :posts (all-pages (str in-dir "/posts"))})))
 
 (defn write-index [in-dir output]
   (spit (str output "/index.html")
@@ -122,7 +123,7 @@
 (defn prepare-dirs [in-dir output]
   "Prepare directory structure."
   (let [output-structure (reduce (fn [dirs file]
-                                   (let [slug (post-url file)]
+                                   (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
                                  #{(str output "/feeds")} (md-files in-dir))]
     (doall (map fs/mkdirs output-structure))))
@@ -130,17 +131,19 @@
 (defn write-pages [in-dir output]
   "Write HTML files to location."
   (do (prepare-dirs in-dir output)
-      (doall (map (fn [file]
-                    (let [slug (post-url file)
+      (doall (map (fn [post]
+                    (let [file (:file post)
+                          slug (page-url file)
                           metadata (metadata file)]
                       (spit (str output "/" slug "/index.html")
-                            (render-page file in-dir (or (:template metadata)
+                            (render-page post in-dir (or (:template metadata)
                                                          nil)))))
-                  (md-files in-dir)))))
+                  (all-pages in-dir)))))
 
 (defn copy-resources [in-dir output]
   "Copy in-dir/resources containing js,css and images"
-  (fs/copy-dir (str in-dir "/resources") (str output "/resources")))
+  (do (fs/delete-dir (str output "/resources"))
+      (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
 ;; Feed
 (defn generate-feed [posts tag config output]
@@ -150,7 +153,7 @@
                         (let [metadata (metadata post)
                               date (parse (:date metadata))]
                           (conj p {:title (:title metadata)
-                                   :link (str (:site-url config) (post-url post))
+                                   :link (str (:site-url config) (page-url post))
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
@@ -164,29 +167,28 @@
        (spit (str output "/feeds/" tag ".xml"))))
 
 (defn generate-main-feed [in-dir output]
-  (generate-feed (map #(:file %) (all-posts in-dir))
+  (generate-feed (map #(:file %) (all-pages (str in-dir "/posts")))
                  "all"
                  (config in-dir)
                  output))
 
 (defn generate-tag-feed [in-dir output tag]
-  (generate-feed (map #(:file %) (get (tag-buckets (all-posts in-dir)) tag))
+  (generate-feed (map #(:file %) (get (tag-buckets (all-pages
+                                                    (str in-dir "/posts")))
+                                      tag))
                  tag
                  (config in-dir)
                  output))
 
 (defn create-site [in-dir output]
   "Read and create posts."
-  (let [tmp (.getPath (fs/temp-dir "ecst"))]
-    (write-index in-dir tmp)
-    (write-pages in-dir tmp)
-    (generate-main-feed in-dir tmp)
-    (doall (map #(generate-tag-feed in-dir tmp %)
-                (all-tags (all-posts in-dir))))
-    (copy-resources in-dir tmp)
-    (fs/delete-dir output)
-    (fs/copy-dir tmp output)
-    (fs/delete-dir tmp)))
+  (do
+    (write-index in-dir output)
+    (write-pages in-dir output)
+    (generate-main-feed in-dir output)
+    (doall (map #(generate-tag-feed in-dir output %)
+                (all-tags (all-pages in-dir))))
+    (copy-resources in-dir output)))
 
 (defn -main [& args]
   (let [[opts _ banner ] (cli args
