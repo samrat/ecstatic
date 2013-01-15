@@ -5,11 +5,8 @@
             [slugger.core :as slug]
             [clj-rss.core :as rss])
   (:use ecstatic.io
+        ecstatic.utils
         [clojure.tools.cli :only (cli)]
-        ring.adapter.jetty
-        ring.middleware.file
-        ring.util.response
-        clojure.java.browse
         [clj-time.core :only (year month)]
         clj-time.format
         clj-time.local
@@ -217,20 +214,6 @@
     (fs/delete-dir output)
     (fs/copy-dir tmp output)
     (fs/delete-dir tmp)))
-
-;; Run a Jetty server
-(defn serve-static-wrapper [output]
-  (defn serve-static [req] 
-    (let [mime-types {".clj" "text/plain"
-                      ".mp4" "video/mp4"
-                      ".ogv" "video/ogg"}]
-      (if-let [f (file-response (:uri req) {:root output})] 
-        (if-let [mimetype (mime-types (re-find #"\..+$" (:uri req)))] 
-          (merge f {:headers {"Content-Type" mimetype}}) 
-          f)))))
-
-(defn serve [output]
-  (do (future (run-jetty (serve-static-wrapper output) {:port 8080}))))
 
 (defn -main [& args]
   (let [[opts _ banner ] (cli args
