@@ -18,12 +18,11 @@
     (reduce (fn [h [_ k v]]
               (let [key (keyword (.toLowerCase k))]
                 (if (not (h key))
-                  ;; parse post tags
-                  (if (= key :tags)
-                    (assoc h key (->> (clojure.string/split v #",")
+                  (assoc h key (if (= key :tags)
+                                 (->> (clojure.string/split v #",")
                                       (map #(.trim %))
-                                      vec))
-                    (assoc h key v))
+                                      vec)
+                                 v))
                   h)))
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
