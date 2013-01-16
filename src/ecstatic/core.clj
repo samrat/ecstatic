@@ -1,9 +1,11 @@
 (ns ecstatic.core
+  (:gen-class)
   (:require [me.raynes.cegdown :as md]
             [clostache.parser :as clostache]
             [fs.core :as fs]
             [slugger.core :as slug]
-            [clj-rss.core :as rss])
+            [clj-rss.core :as rss]
+            [watchtower.core :as watcher])
   (:use ecstatic.io
         ecstatic.utils
         [clojure.tools.cli :only (cli)]
@@ -36,9 +38,7 @@
   (let [metadata (metadata file)
         slug (or nil (:slug metadata))
         parsed-date (or (or (parse (:date metadata)) nil)
-                        (local-now))
-        ;parsed-date (parse date)
-        ]
+                        (local-now))]
     (if slug slug
         (str "/blog/"
              (year parsed-date) "/"
@@ -89,32 +89,50 @@
        (set)))
 
 ;; HTML rendering
+(defn render-template
+  "Pass in the template name (a string, sans its .mustache
+filename extension), the data for the template (a map), and a list of
+partials (keywords) corresponding to like-named template filenames."
+  [in-dir template data partials]
+  (clostache/render
+   (slurp (str in-dir "/templates/" template ".mustache"))
+    data
+    (reduce (fn [accum pt] ;; "pt" is the name (as a keyword) of the partial.
+              (assoc accum pt (slurp (str in-dir "/templates/"
+                                                       (name pt)
+                                                       ".mustache"))))
+            {}
+            partials)))
+
 (defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
   (let [file (:file post)
         template (or (or (first template) nil) "post")
-        t (slurp (str in-dir "/templates/" template ".html"))
+        t (slurp (str in-dir "/templates/" template ".mustache"))
         [prev next] (pager (all-pages in-dir) post)]
-        (clostache/render t
-                          {:site-name (:site-name (config in-dir))
-                           :site-url (:site-url (config in-dir))
-                           :page {:title (:title (metadata file))
-                                  :url   (page-url file)
-                                  :date (unparse
-                                         (formatter "dd MMMMM, YYYY")
-                                         (parse (:date (metadata file))))
-                                  :content (md/to-html (content file)
-                                                       [:fenced-code-blocks])}
-                           :prev (or nil prev)
-                           :next (or nil next)
-                           })))
+    (render-template in-dir
+                     template
+                     {:site-name (:site-name (config in-dir))
+                      :site-url (:site-url (config in-dir))
+                      :page {:title (:title (metadata file))
+                             :url   (page-url file)
+                             :date (unparse
+                                    (formatter "dd MMMMM, YYYY")
+                                    (parse (:date (metadata file))))
+                             :content (md/to-html (content file)
+                                                  [:fenced-code-blocks])}
+                      :prev (or nil prev)
+                      :next (or nil next)}
+                     [:header :footer])))
 
 (defn generate-index [in-dir]
   "Generate content for index.html"
-  (let [t (slurp (str in-dir "/templates/index.html"))]
-    (clostache/render t
-                      {:site-name (:site-name (config in-dir))
-                       :posts (all-pages (str in-dir "/posts"))})))
+  (render-template  in-dir
+                    "index"
+                    {:site-name (:site-name (config in-dir))
+                     :page {:title (:site-name (config in-dir))}
+                     :posts (all-pages (str in-dir "/posts"))}
+                    [:header :footer]))
 
 (defn write-index [in-dir output]
   (spit (str output "/index.html")
@@ -188,14 +206,25 @@
     (generate-main-feed in-dir output)
     (doall (map #(generate-tag-feed in-dir output %)
                 (all-tags (all-pages in-dir))))
-    (copy-resources in-dir output)))
+    (copy-resources in-dir output)
+    (println "Successfully compiled site.")))
+
+(defn auto-regen [in-dir output]
+  (watcher/watcher [in-dir]
+           (watcher/rate 1000)
+           (watcher/on-change (create-site in-dir output))))
 
 (defn -main [& args]
-  (let [[opts _ banner ] (cli args
+  (let [[opts _ banner] (cli args
+                              ["-h" "--help" "Print this help text and exit"]
                               ["-s" "--src" "Source for site."]
-                              ["-o" "--output" "Output for site."]
-                              ["-j" "--jetty" "Run jetty server"]
-                              ["-b" "--build" "Build site"])
-        {:keys [jetty build src output]} opts]
-    (cond build (create-site src output)
-          jetty (serve jetty))))
+                              ["-o" "--output" "Output for site." :default "./_site"]
+                              ["-p" "--preview" "Run jetty server on http://localhost:8080"]
+                              ["-w" "--watch" "Auto site generation."])
+        {:keys [help preview src output watch]} opts]
+    (when help
+      (println banner)
+      (System/exit 0))
+    (cond src (create-site src output)
+          preview (serve preview)
+          watch (auto-regen watch output))))
