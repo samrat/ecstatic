@@ -1,11 +1,13 @@
 # ecstatic
 
-ecstatic creates static web pages and blog posts from Markdown and Mustache templates.
-Its written in Clojure.
+ecstatic creates static web pages and blog posts from Mustache
+templates(using clostache) and Markdown. Its written in Clojure.
+
+A tutorial can be found at the [Ecstatic homepage](http://samrat.me/ecstatic)
 
 ## Usage
 
-```clojure
+```shell
 lein run --src ~/code/mysite-source --output ~/code/mysite.com
 ```
 
