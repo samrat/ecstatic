@@ -88,7 +88,7 @@
        (apply concat)
        (set)))
 
-;; HTML rendering
+;; HTML rendering(http://github.com/fhd/clostache/wiki)
 (defn render-template
   "Pass in the template name (a string, sans its .mustache
 filename extension), the data for the template (a map), and a list of
@@ -130,7 +130,6 @@ partials (keywords) corresponding to like-named template filenames."
   (render-template  in-dir
                     "index"
                     {:site-name (:site-name (config in-dir))
-                     :page {:title (:site-name (config in-dir))}
                      :posts (all-pages (str in-dir "/posts"))}
                     [:header :footer]))
 
@@ -212,6 +211,7 @@ partials (keywords) corresponding to like-named template filenames."
 (defn auto-regen [in-dir output]
   (watcher/watcher [in-dir]
            (watcher/rate 1000)
+           (watcher/file-filter :ignore-dotfiles)
            (watcher/on-change (create-site in-dir output))))
 
 (defn -main [& args]
