@@ -14,4 +14,4 @@
           f)))))
 
 (defn serve [output]
-  (do (future (run-jetty (serve-static-wrapper output) {:port 8080}))))
+  (future (run-jetty (serve-static-wrapper output) {:port 8080})))

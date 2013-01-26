@@ -19,7 +19,7 @@
   (let [meta (first (split-file path))]
     (reduce (fn [h [_ k v]]
               (let [key (keyword (.toLowerCase k))]
-                (if (not (h key))
+                (if-not (h key)
                   (assoc h key (if (= key :tags)
                                  (->> (clojure.string/split v #",")
                                       (map #(.trim %))
@@ -63,11 +63,9 @@
   "Gives the previous and next posts(chronologically)."
   (let [posts (reverse posts)
         i (.indexOf posts post)
-        prev (if (<= i 0)
-               nil
+        prev (when-not (<= i 0)
                (nth posts (dec i)))
-        next (if (>= i (dec (count posts)))
-               nil
+        next (when-not (>= i (dec (count posts)))
                (nth posts (inc i)))]
     [prev next]))
 
@@ -84,7 +82,7 @@
 (defn all-tags [posts]
   "Return list of all tags."
   (->> posts
-       (map #(:tags %))
+       (map :tags)
        (apply concat)
        (set)))
 
@@ -184,13 +182,13 @@ partials (keywords) corresponding to like-named template filenames."
        (spit (str output "/feeds/" tag ".xml"))))
 
 (defn generate-main-feed [in-dir output]
-  (generate-feed (map #(:file %) (all-pages (str in-dir "/posts")))
+  (generate-feed (map :file (all-pages (str in-dir "/posts")))
                  "all"
                  (config in-dir)
                  output))
 
 (defn generate-tag-feed [in-dir output tag]
-  (generate-feed (map #(:file %) (get (tag-buckets (all-pages
+  (generate-feed (map :file (get (tag-buckets (all-pages
                                                     (str in-dir "/posts")))
                                       tag))
                  tag
