@@ -8,6 +8,9 @@
     (with-open [r (io/reader (str in-dir "/config.clj"))]
       (read (PushbackReader. r)))))
 
+(defn read-template [path]
+  (read-string (slurp path)))
+
 (defn- regex-file-seq
   "Lazily filter a directory based on regex."
   [regex in-dir]

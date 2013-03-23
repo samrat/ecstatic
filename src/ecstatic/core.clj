@@ -1,13 +1,13 @@
 (ns ecstatic.core
   (:gen-class)
   (:require [me.raynes.cegdown :as md]
-            [clostache.parser :as clostache]
             [fs.core :as fs]
             [slugger.core :as slug]
             [clj-rss.core :as rss]
             [watchtower.core :as watcher])
   (:use ecstatic.io
         ecstatic.utils
+        hiccup.core
         [clojure.tools.cli :only (cli)]
         [clj-time.core :only (year month)]
         clj-time.format
@@ -86,50 +86,48 @@
        (apply concat)
        (set)))
 
-;; HTML rendering(http://github.com/fhd/clostache/wiki)
+(def ^:dynamic c nil)
+(def ^:dynamic m nil)
+
 (defn render-template
-  "Pass in the template name (a string, sans its .mustache
-filename extension), the data for the template (a map), and a list of
-partials (keywords) corresponding to like-named template filenames."
-  [in-dir template data partials]
-  (clostache/render
-   (slurp (str in-dir "/templates/" template ".mustache"))
-    data
-    (reduce (fn [accum pt] ;; "pt" is the name (as a keyword) of the partial.
-              (assoc accum pt (slurp (str in-dir "/templates/"
-                                                       (name pt)
-                                                       ".mustache"))))
-            {}
-            partials)))
+  [in-dir template c m]
+  (binding [c c
+            m m]
+    (if (= template "base")
+      (html
+       (eval (read-template
+              (str in-dir "/templates/" template ".clj"))))
+      (render-template in-dir
+                       "base"
+                       (eval (read-template
+                              (str in-dir "/templates/" template ".clj")))
+                       m))))
 
 (defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
   (let [file (:file post)
         template (or (or (first template) nil) "post")
-        t (slurp (str in-dir "/templates/" template ".mustache"))
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
+                     {:content (md/to-html (content file)
+                                           [:fenced-code-blocks])}
                      {:site-name (:site-name (config in-dir))
                       :site-url (:site-url (config in-dir))
-                      :page {:title (:title (metadata file))
-                             :url   (page-url file)
-                             :date (unparse
-                                    (formatter "dd MMMMM, YYYY")
-                                    (parse (:date (metadata file))))
-                             :content (md/to-html (content file)
-                                                  [:fenced-code-blocks])}
+                      :title (:title (metadata file))
+                      :url   (page-url file)
+                      :date (unparse
+                             (formatter "dd MMMMM, YYYY")
+                             (parse (:date (metadata file))))
                       :prev (or nil prev)
-                      :next (or nil next)}
-                     [:header :footer])))
+                      :next (or nil next)})))
 
 (defn generate-index [in-dir]
   "Generate content for index.html"
-  (render-template  in-dir
-                    "index"
-                    {:site-name (:site-name (config in-dir))
-                     :posts (all-pages (str in-dir "/posts"))}
-                    [:header :footer]))
+  (render-template in-dir
+                   "index"
+                   (into [] (all-pages (str in-dir "/posts")))
+                   {:site-name (:site-name (config in-dir))}))
 
 (defn write-index [in-dir output]
   (spit (str output "/index.html")
@@ -189,8 +187,8 @@ partials (keywords) corresponding to like-named template filenames."
 
 (defn generate-tag-feed [in-dir output tag]
   (generate-feed (map :file (get (tag-buckets (all-pages
-                                                    (str in-dir "/posts")))
-                                      tag))
+                                               (str in-dir "/posts")))
+                                 tag))
                  tag
                  (config in-dir)
                  output))
