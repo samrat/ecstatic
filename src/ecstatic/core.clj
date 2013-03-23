@@ -126,7 +126,7 @@
   "Generate content for index.html"
   (render-template in-dir
                    "index"
-                   (into [] (all-pages (str in-dir "/posts")))
+                   (all-pages (str in-dir "/posts"))
                    {:site-name (:site-name (config in-dir))}))
 
 (defn write-index [in-dir output]
