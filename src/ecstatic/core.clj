@@ -8,11 +8,11 @@
   (:use ecstatic.io
         ecstatic.utils
         hiccup.core
-        [clojure.tools.cli :only (cli)]
-        [clj-time.core :only (year month day)]
         clj-time.format
         clj-time.local
-        clj-time.coerce))
+        clj-time.coerce
+        [clojure.tools.cli :only (cli)]
+        [clj-time.core :only (year month day)]))
 
 (defn metadata [path]
   "Returns map containing page metadata."
@@ -84,17 +84,14 @@
        (apply concat)
        (set)))
 
-;;(declare ^:dynamic content)
-;;(declare ^:dynamic metadata)
-
 (defn render-template
-  [in-dir template content metadata]
+  [in-dir template page-content page-metadata]
   (if (string? template)
     (let [template #'layout/page]
-        (layout/base metadata (template metadata
-                                        content)))
-      (layout/base metadata (template metadata
-                                      content))))
+        (layout/base page-metadata (template page-metadata
+                                             content)))
+      (layout/base page-metadata (template page-metadata
+                                           page-content))))
 
 (defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
@@ -118,6 +115,7 @@
 
 (defn generate-index [in-dir]
   "Generate content for index.html"
+  (println "Generating index...")
   (render-template in-dir
                    #'layout/site-index
                    (all-pages (str in-dir "/posts"))
@@ -129,6 +127,7 @@
 
 (defn prepare-dirs [in-dir output]
   "Prepare directory structure."
+  (println "Preparing directory structure...")
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
@@ -137,6 +136,7 @@
 
 (defn write-pages [in-dir output]
   "Write HTML files to location."
+  (println "Writing posts and pages...")
   (do (prepare-dirs in-dir output)
       (doall (map (fn [post]
                     (let [file (:file post)
@@ -149,6 +149,7 @@
 
 (defn copy-resources [in-dir output]
   "Copy in-dir/resources containing js,css and images"
+  (println "Copying resources...")
   (do (fs/delete-dir (str output "/resources"))
       (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
@@ -174,6 +175,7 @@
        (spit (str output "/feeds/" tag ".xml"))))
 
 (defn generate-main-feed [in-dir output]
+  (println "Generating main feed...")
   (generate-feed (map :file (all-pages (str in-dir "/posts")))
                  "all"
                  (config in-dir)
