@@ -2,7 +2,6 @@
   (:gen-class)
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [slugger.core :as slug]
             [clj-rss.core :as rss]
             [ecstatic.layout :as layout]
             [watchtower.core :as watcher])
