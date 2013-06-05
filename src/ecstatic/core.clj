@@ -162,7 +162,9 @@
                               date (parse (:date metadata))]
                           (conj p {:title (:title metadata)
                                    :link (str (:site-url config)
-                                              (page-url post))
+                                              (page-url post)
+                                              ;; for feed analytics
+                                              "?utm_source=feed")
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
