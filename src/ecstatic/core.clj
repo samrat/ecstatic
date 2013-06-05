@@ -4,12 +4,13 @@
             [fs.core :as fs]
             [slugger.core :as slug]
             [clj-rss.core :as rss]
+            [ecstatic.layout :as layout]
             [watchtower.core :as watcher])
   (:use ecstatic.io
         ecstatic.utils
         hiccup.core
         [clojure.tools.cli :only (cli)]
-        [clj-time.core :only (year month)]
+        [clj-time.core :only (year month day)]
         clj-time.format
         clj-time.local
         clj-time.coerce))
@@ -34,18 +35,16 @@
 
 ;; Other metadata
 (defn page-url [file]
-  "Return relative URL of a post."
-  (let [metadata (metadata file)
-        slug (or nil (:slug metadata))
-        parsed-date (or (or (parse (:date metadata)) nil)
-                        (local-now))]
-    (if slug slug
+  "Return relative URL of a post from its file name."
+  (let [file-name (fs/name file)
+        type (fs/name (fs/parent file))]
+    (if (= type "posts") ; blogpost or page.
+      (let [date (take 3 (clojure.string/split file-name #"-"))
+            file-name (drop 3 (clojure.string/split file-name #"-"))]
         (str "/blog/"
-             (year parsed-date) "/"
-             (if (= (count (str (month parsed-date))) 2)
-               (month parsed-date)
-               (str "0" (month parsed-date))) "/"
-               (slug/->slug (:title metadata))))))
+             (clojure.string/join "/" date) "/"
+             (clojure.string/join "-" file-name)))
+      (str "/" file-name))))
 
 (defn all-pages [in-dir]
   "List of maps containing post-info."
@@ -86,27 +85,23 @@
        (apply concat)
        (set)))
 
-(def ^:dynamic c nil)
-(def ^:dynamic m nil)
+;;(declare ^:dynamic content)
+;;(declare ^:dynamic metadata)
 
 (defn render-template
-  [in-dir template c m]
-  (binding [c c
-            m m]
-    (if (= template "base")
-      (html
-       (eval (read-template
-              (str in-dir "/templates/" template ".clj"))))
-      (render-template in-dir
-                       "base"
-                       (eval (read-template
-                              (str in-dir "/templates/" template ".clj")))
-                       m))))
+  [in-dir template content metadata]
+  (if (string? template)
+    (let [template #'layout/page]
+        (layout/base metadata (template metadata
+                                        content)))
+      (layout/base metadata (template metadata
+                                      content))))
 
 (defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
   (let [file (:file post)
-        template (or (or (first template) nil) "post")
+        template (or (or (first template) nil)
+                     #'layout/post)
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
@@ -125,7 +120,7 @@
 (defn generate-index [in-dir]
   "Generate content for index.html"
   (render-template in-dir
-                   "index"
+                   #'layout/site-index
                    (all-pages (str in-dir "/posts"))
                    {:site-name (:site-name (config in-dir))}))
 
@@ -208,10 +203,13 @@
   (watcher/watcher [in-dir]
            (watcher/rate 1000)
            (watcher/file-filter :ignore-dotfiles)
-           (watcher/on-change (create-site in-dir output))))
+           (watcher/on-change (fn []
+                                (println "Rebuilding site...")
+                                (try (create-site in-dir output)
+                                     (catch Exception e (println e)))))))
 
 (defn -main [& args]
-  (let [[opts _ banner] (cli args
+  (let [[opts args banner] (cli args
                               ["-h" "--help" "Print this help text and exit"]
                               ["-s" "--src" "Source for site."]
                               ["-o" "--output" "Output for site." :default "./_site"]
