@@ -13,4 +13,6 @@
                  [ring/ring-core "1.0.3"]
                  [ring/ring-jetty-adapter "1.0.3"]
                  [me.raynes/cegdown "0.1.0"]]
-  :main ecstatic.core)
+  :main ecstatic.core
+  :bin {:name "ecstatic"
+        :bin-path "~/bin"})

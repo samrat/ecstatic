@@ -93,7 +93,7 @@
        
        [:div {:class "five columns"}
         [:p "This site is generated using "
-         [:a {:href "http://samrat.me/ecstatic"} "Ecstatic"]
+         [:a {:href "/ecstatic"} "Ecstatic"]
          " and is hosted on "
          [:a {:href "http://pages.github.com"} "Github Pages."]]]]]
      "<script type='text/javascript'>

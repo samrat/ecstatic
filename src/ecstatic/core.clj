@@ -38,7 +38,7 @@
   (let [file-name (fs/name file)
         type (fs/name (fs/parent file))]
     (if (= type "posts") ; blogpost or page.
-      (let [date (take 3 (clojure.string/split file-name #"-"))
+      (let [date (take 2 (clojure.string/split file-name #"-"))
             file-name (drop 3 (clojure.string/split file-name #"-"))]
         (str "/blog/"
              (clojure.string/join "/" date) "/"
@@ -161,7 +161,8 @@
                         (let [metadata (metadata post)
                               date (parse (:date metadata))]
                           (conj p {:title (:title metadata)
-                                   :link (str (:site-url config) (page-url post))
+                                   :link (str (:site-url config)
+                                              (page-url post))
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
