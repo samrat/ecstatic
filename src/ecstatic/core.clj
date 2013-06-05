@@ -3,15 +3,11 @@
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
             [clj-rss.core :as rss]
-            [ecstatic.layout :as layout]
             [watchtower.core :as watcher])
-  (:use ecstatic.io
-        ecstatic.utils
-        hiccup.core
-        clj-time.format
-        clj-time.local
-        clj-time.coerce
+  (:use [ecstatic io utils]
+        [hiccup core page]
         [clojure.tools.cli :only (cli)]
+        [clj-time format local coerce]
         [clj-time.core :only (year month day)]))
 
 (defn metadata [path]
@@ -84,20 +80,27 @@
        (apply concat)
        (set)))
 
+(def ^:dynamic cont nil)
+(def ^:dynamic met nil)
+
 (defn render-template
   [in-dir template page-content page-metadata]
-  (if (string? template)
-    (let [template #'layout/page]
-        (layout/base page-metadata (template page-metadata
-                                             content)))
-      (layout/base page-metadata (template page-metadata
-                                           page-content))))
+  (let [base (read-template (str in-dir "/templates/base.clj"))
+        template (read-template (str in-dir "/templates/" template ".clj"))
+        base-content (binding [*ns* (the-ns 'ecstatic.core)
+                               cont page-content
+                               met  page-metadata]
+                       (html (eval template)))]
+    (binding [*ns* (the-ns 'ecstatic.core)
+              cont base-content
+              met  page-metadata]
+      (html5 (eval base)))))
 
 (defn render-page [post in-dir & template]
   "Render HTML file from markdown file."
   (let [file (:file post)
         template (or (or (first template) nil)
-                     #'layout/post)
+                     "post")
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
@@ -117,7 +120,7 @@
   "Generate content for index.html"
   (println "Generating index...")
   (render-template in-dir
-                   #'layout/site-index
+                   "index"
                    (all-pages (str in-dir "/posts"))
                    {:site-name (:site-name (config in-dir))}))
 
