@@ -1,7 +1,7 @@
 # ecstatic
 
-ecstatic creates static web pages and blog posts from Mustache
-templates(using clostache) and Markdown. Its written in Clojure.
+ecstatic creates static web pages and blog posts from Hiccup templates
+and Markdown. Its written in Clojure.
 
 A tutorial can be found at the [Ecstatic homepage](http://samrat.me/ecstatic)
 
