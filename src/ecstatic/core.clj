@@ -2,9 +2,9 @@
   (:gen-class)
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [clj-rss.core :as rss]
-            [watchtower.core :as watcher])
-  (:use [ecstatic io utils]
+            [clj-rss.core :as rss])
+  (:use filevents.core
+        [ecstatic io utils]
         [hiccup core page]
         [clojure.tools.cli :only (cli)]
         [clj-time format local coerce]
@@ -207,13 +207,12 @@
     (println "Successfully compiled site.")))
 
 (defn auto-regen [in-dir output]
-  (watcher/watcher [in-dir]
-           (watcher/rate 1000)
-           (watcher/file-filter :ignore-dotfiles)
-           (watcher/on-change (fn []
-                                (println "Rebuilding site...")
-                                (try (create-site in-dir output)
-                                     (catch Exception e (println e)))))))
+  (create-site in-dir output)
+  (watch (fn [_ file]
+           (println)
+           (println "Regenerating site...")
+           (create-site in-dir output))
+         in-dir))
 
 (defn -main [& args]
   (let [[opts args banner] (cli args

@@ -28,7 +28,8 @@
 
 (deftest test-io
   (is (fs/exists? "test-site/_site/index.html"))
-  (is (fs/exists? "test-site/_site/blog/2011/01/dummy-post-one/index.html"))
+  (is (fs/exists?
+       "test-site/_site/blog/2011/01/dummy-post-one/index.html"))
   (is (fs/exists? "test-site/_site/books/index.html")))
 
 #_(deftest test-rss
