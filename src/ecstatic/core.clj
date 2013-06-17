@@ -110,7 +110,8 @@
                       :site-url (:site-url (config in-dir))
                       :title (:title (metadata file))
                       :url   (page-url file)
-                      :date (unparse
+                      :date (:date (metadata file))
+                      :human-readable-date (unparse
                              (formatter "dd MMMMM, YYYY")
                              (parse (:date (metadata file))))
                       :prev (or nil prev)
