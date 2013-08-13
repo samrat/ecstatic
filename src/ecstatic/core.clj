@@ -10,8 +10,9 @@
         [clj-time format local coerce]
         [clj-time.core :only (year month day)]))
 
-(defn metadata [path]
+(defn metadata
   "Returns map containing page metadata."
+  [path]
   (let [meta (first (split-file path))]
     (reduce (fn [h [_ k v]]
               (let [key (keyword (.toLowerCase k))]
@@ -24,13 +25,15 @@
                   h)))
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
-(defn content [path]
+(defn content
   "Return the page content."
+  [path]
   (second (split-file path)))
 
 ;; Other metadata
-(defn page-url [file]
+(defn page-url
   "Return relative URL of a post from its file name."
+  [file]
   (let [file-name (fs/name file)
         type (fs/name (fs/parent file))]
     (if (= type "posts") ; blogpost or page.
@@ -41,8 +44,9 @@
              (clojure.string/join "-" file-name)))
       (str "/" file-name))))
 
-(defn all-pages [in-dir]
+(defn all-pages
   "List of maps containing post-info."
+  [in-dir]
   (->> (map (fn [file]
               (-> (assoc (metadata file) :file file)
                   (assoc :url (page-url file))
@@ -53,8 +57,9 @@
        (sort-by :date)
        (reverse)))
 
-(defn pager [posts post]
-  "Gives the previous and next posts(chronologically)."
+(defn pager
+  "Gives the previous and next posts in chronological order."
+  [posts post]
   (let [posts (reverse posts)
         i (.indexOf posts post)
         prev (when-not (<= i 0)
@@ -63,9 +68,10 @@
                (nth posts (inc i)))]
     [prev next]))
 
-(defn tag-buckets [posts]
-  "Categorizes posts under tags.
-   Returns {tag1 [post1 post2], tag2 [post1]}"
+(defn tag-buckets
+  "Categorizes posts under tags. Returns {tag1 [post1 post2], tag2
+   [post1]}"
+  [posts]
   (->> (reduce (fn [m post]
                  (concat m  (interleave (:tags post) (repeat (vector post)))))
                [] posts)
@@ -73,8 +79,9 @@
        (map #(hash-map (first %) (second %)))
        (apply merge-with concat)))
 
-(defn all-tags [posts]
+(defn all-tags
   "Return list of all tags."
+  [posts]
   (->> posts
        (map :tags)
        (apply concat)
@@ -96,8 +103,9 @@
               met  page-metadata]
       (html5 (eval base)))))
 
-(defn render-page [post in-dir & template]
+(defn render-page
   "Render HTML file from markdown file."
+  [post in-dir & template]
   (let [file (:file post)
         template (or (or (first template) nil)
                      "post")
@@ -110,15 +118,17 @@
                       :site-url (:site-url (config in-dir))
                       :title (:title (metadata file))
                       :url   (page-url file)
-                      :date (:date (metadata file))
+                      :date (unparse (formatters :date-time-no-ms)
+                                     (parse (:date (metadata file))))
                       :human-readable-date (unparse
                              (formatter "dd MMMMM, YYYY")
                              (parse (:date (metadata file))))
                       :prev (or nil prev)
                       :next (or nil next)})))
 
-(defn generate-index [in-dir]
+(defn generate-index
   "Generate content for index.html"
+  [in-dir]
   (println "Generating index...")
   (render-template in-dir
                    "index"
@@ -129,8 +139,9 @@
   (spit (str output "/index.html")
         (generate-index in-dir)))
 
-(defn prepare-dirs [in-dir output]
+(defn prepare-dirs
   "Prepare directory structure."
+  [in-dir output]
   (println "Preparing directory structure...")
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
@@ -138,8 +149,9 @@
                                  #{(str output "/feeds")} (md-files in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
-(defn write-pages [in-dir output]
+(defn write-pages
   "Write HTML files to location."
+  [in-dir output]
   (println "Writing posts and pages...")
   (do (prepare-dirs in-dir output)
       (doall (map (fn [post]
@@ -151,15 +163,17 @@
                                                          nil)))))
                   (all-pages in-dir)))))
 
-(defn copy-resources [in-dir output]
+(defn copy-resources
   "Copy in-dir/resources containing js,css and images"
+  [in-dir output]
   (println "Copying resources...")
   (do (fs/delete-dir (str output "/resources"))
       (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
 ;; Feed
-(defn generate-feed [posts tag config output]
+(defn generate-feed
   "Generate and write RSS feed."
+  [posts tag config output]
   (->> (apply rss/channel-xml
               (reduce (fn [p post]
                         (let [metadata (metadata post)
@@ -196,8 +210,9 @@
                  (config in-dir)
                  output))
 
-(defn create-site [in-dir output]
+(defn create-site
   "Read and create posts."
+  [in-dir output]
   (do
     (write-index in-dir output)
     (write-pages in-dir output)
