@@ -1,4 +1,4 @@
-(defproject ecstatic "0.2.3"
+(defproject ecstatic "0.2.4"
   :description "A static site generator"
   :url "http://samrat.me/ecstatic"
   :license {:name "Eclipse Public License"
