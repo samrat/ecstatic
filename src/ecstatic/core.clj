@@ -14,16 +14,18 @@
   "Returns map containing page metadata."
   [path]
   (let [meta (first (split-file path))]
-    (reduce (fn [h [_ k v]]
-              (let [key (keyword (.toLowerCase k))]
-                (if-not (h key)
-                  (assoc h key (if (= key :tags)
-                                 (->> (clojure.string/split v #",")
-                                      (map #(.trim %))
-                                      vec)
-                                 v))
-                  h)))
-            {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
+    (-> (reduce (fn [h [_ k v]]
+                  (let [key (keyword (.toLowerCase k))]
+                    (if-not (h key)
+                      (assoc h key (if (= key :tags)
+                                     (->> (clojure.string/split v #",")
+                                          (map #(.trim %))
+                                          vec)
+                                     v))
+                      h)))
+                {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))
+        (update-in [:date] #(unparse (formatters :date-time-no-ms)
+                                     (parse %))))))
 
 (defn content
   "Return the page content."
@@ -118,8 +120,7 @@
                       :site-url (:site-url (config in-dir))
                       :title (:title (metadata file))
                       :url   (page-url file)
-                      :date (unparse (formatters :date-time-no-ms)
-                                     (parse (:date (metadata file))))
+                      :date (:date (metadata file))
                       :human-readable-date (unparse
                              (formatter "dd MMMMM, YYYY")
                              (parse (:date (metadata file))))
