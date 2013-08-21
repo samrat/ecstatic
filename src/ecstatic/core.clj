@@ -14,18 +14,18 @@
   "Returns map containing page metadata."
   [path]
   (let [meta (first (split-file path))]
-    (-> (reduce (fn [h [_ k v]]
-                  (let [key (keyword (.toLowerCase k))]
-                    (if-not (h key)
-                      (assoc h key (if (= key :tags)
-                                     (->> (clojure.string/split v #",")
-                                          (map #(.trim %))
-                                          vec)
-                                     v))
-                      h)))
-                {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))
-        (update-in [:date] #(unparse (formatters :date-time-no-ms)
-                                     (parse %))))))
+    (reduce (fn [h [_ k v]]
+              (let [key (keyword (.toLowerCase k))]
+                (if-not (h key)
+                  (assoc h key (condp = key
+                                 :tags (->> (clojure.string/split v #",")
+                                            (map #(.trim %))
+                                            vec)
+                                 :date (unparse (formatters :date-time-no-ms)
+                                                (parse v))
+                                 v))
+                  h)))
+            {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
 (defn content
   "Return the page content."
@@ -70,16 +70,18 @@
                (nth posts (inc i)))]
     [prev next]))
 
-(defn tag-buckets
+(def tag-buckets
   "Categorizes posts under tags. Returns {tag1 [post1 post2], tag2
    [post1]}"
-  [posts]
-  (->> (reduce (fn [m post]
-                 (concat m  (interleave (:tags post) (repeat (vector post)))))
-               [] posts)
-       (partition 2)
-       (map #(hash-map (first %) (second %)))
-       (apply merge-with concat)))
+  (memoize
+   (fn [posts]
+     (->> (reduce (fn [m post]
+                    (concat m (interleave (:tags post)
+                                          (repeat (vector post)))))
+                  [] posts)
+          (partition 2)
+          (map #(hash-map (first %) (second %)))
+          (apply merge-with concat)))))
 
 (defn all-tags
   "Return list of all tags."
@@ -105,6 +107,18 @@
               met  page-metadata]
       (html5 (eval base)))))
 
+(defn related-posts
+  "Returns n posts related to `post`."
+  [in-dir post n]
+  (->> (:tags post)
+       (map #(get (tag-buckets (all-pages in-dir)) %))
+       (apply concat)
+       (remove #{post})
+       (frequencies)
+       (sort-by second)
+       (take n)
+       (map key)))
+
 (defn render-page
   "Render HTML file from markdown file."
   [post in-dir & template]
@@ -112,6 +126,7 @@
         template (or (or (first template) nil)
                      "post")
         [prev next] (pager (all-pages in-dir) post)]
+    (println (related-posts in-dir post 1))
     (render-template in-dir
                      template
                      {:content (md/to-html (content file)
@@ -125,7 +140,8 @@
                              (formatter "dd MMMMM, YYYY")
                              (parse (:date (metadata file))))
                       :prev (or nil prev)
-                      :next (or nil next)})))
+                      :next (or nil next)
+                      :related-posts (related-posts in-dir post 3)})))
 
 (defn generate-index
   "Generate content for index.html"
