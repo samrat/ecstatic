@@ -126,7 +126,6 @@
         template (or (or (first template) nil)
                      "post")
         [prev next] (pager (all-pages in-dir) post)]
-    (println (related-posts in-dir post 1))
     (render-template in-dir
                      template
                      {:content (md/to-html (content file)
@@ -244,7 +243,7 @@
   (watch (fn [_ file]
            (println)
            (println "Regenerating site...")
-           (create-site in-dir output))
+           (future (create-site in-dir output)))
          in-dir))
 
 (defn -main [& args]
