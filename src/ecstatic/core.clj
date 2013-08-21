@@ -140,7 +140,10 @@
                              (parse (:date (metadata file))))
                       :prev (or nil prev)
                       :next (or nil next)
-                      :related-posts (related-posts in-dir post 3)})))
+                      :related-posts (related-posts in-dir
+                                                    post
+                                                    (:num-related-posts
+                                                     (config in-dir)))})))
 
 (defn generate-index
   "Generate content for index.html"
