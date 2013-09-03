@@ -107,17 +107,18 @@
               met  page-metadata]
       (html5 (eval base)))))
 
-(defn related-posts
+(def related-posts
   "Returns n posts related to `post`."
-  [in-dir post n]
-  (->> (:tags post)
-       (map #(get (tag-buckets (all-pages in-dir)) %))
-       (apply concat)
-       (remove #{post})
-       (frequencies)
-       (sort-by second)
-       (take n)
-       (map key)))
+  (memoize
+   (fn [in-dir post n]
+     (->> (:tags post)
+          (map #(get (tag-buckets (all-pages in-dir)) %))
+          (apply concat)
+          (remove #{post})
+          (frequencies)
+          (sort-by second)
+          (take n)
+          (map key)))))
 
 (defn render-page
   "Render HTML file from markdown file."
