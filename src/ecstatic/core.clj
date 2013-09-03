@@ -5,12 +5,11 @@
             [clj-rss.core :as rss]
             [filevents.core :refer :all]
             [hiccup.core :refer :all]
-            [hiccup.page :refer :all]
+            [hiccup.page :refer [html5]]
             [clojure.tools.cli :refer [cli]]
             [clj-time.core :refer [year month day]]
-            [clj-time.format :refer :all]
-            [clj-time.local :refer :all]
-            [clj-time.coerce :refer :all]
+            [clj-time.format :refer [parse unparse formatters]]
+            [clj-time.coerce :refer [to-date]]
             [ecstatic.io :refer :all]
             [ecstatic.utils :refer :all]))
 
