@@ -2,13 +2,17 @@
   (:gen-class)
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [clj-rss.core :as rss])
-  (:use filevents.core
-        [ecstatic io utils]
-        [hiccup core page]
-        [clojure.tools.cli :only (cli)]
-        [clj-time format local coerce]
-        [clj-time.core :only (year month day)]))
+            [clj-rss.core :as rss]
+            [filevents.core :refer :all]
+            [hiccup.core :refer :all]
+            [hiccup.page :refer :all]
+            [clojure.tools.cli :refer [cli]]
+            [clj-time.core :refer [year month day]]
+            [clj-time.format :refer :all]
+            [clj-time.local :refer :all]
+            [clj-time.coerce :refer :all]
+            [ecstatic.io :refer :all]
+            [ecstatic.utils :refer :all]))
 
 (defn metadata
   "Returns map containing page metadata."
@@ -108,12 +112,13 @@
       (html5 (eval base)))))
 
 (def related-posts
-  "Returns n posts related to `post`."
+  ^{:doc "Returns n posts related to `post`."}
   (memoize
    (fn [in-dir post n]
      (->> (:tags post)
           (map #(get (tag-buckets (all-pages in-dir)) %))
           (apply concat)
+          (map #(dissoc % :file :tags))
           (remove #{post})
           (frequencies)
           (sort-by second)
@@ -173,15 +178,14 @@
   "Write HTML files to location."
   [in-dir output]
   (println "Writing posts and pages...")
-  (do (prepare-dirs in-dir output)
-      (doall (map (fn [post]
-                    (let [file (:file post)
-                          slug (page-url file)
-                          metadata (metadata file)]
-                      (spit (str output "/" slug "/index.html")
-                            (render-page post in-dir (or (:template metadata)
-                                                         nil)))))
-                  (all-pages in-dir)))))
+  (doall (map (fn [post]
+                (let [file (:file post)
+                      slug (page-url file)
+                      metadata (metadata file)]
+                  (spit (str output "/" slug "/index.html")
+                        (render-page post in-dir (or (:template metadata)
+                                                     nil)))))
+              (all-pages in-dir))))
 
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
@@ -233,14 +237,14 @@
 (defn create-site
   "Read and create posts."
   [in-dir output]
-  (do
-    (write-index in-dir output)
-    (write-pages in-dir output)
-    (generate-main-feed in-dir output)
-    (doall (map #(generate-tag-feed in-dir output %)
-                (all-tags (all-pages in-dir))))
-    (copy-resources in-dir output)
-    (println "Successfully compiled site.")))
+  (do (prepare-dirs in-dir output)
+      (write-index in-dir output)
+      (write-pages in-dir output)
+      (generate-main-feed in-dir output)
+      (doall (map #(generate-tag-feed in-dir output %)
+                  (all-tags (all-pages in-dir))))
+      (copy-resources in-dir output)
+      (println "Successfully compiled site.")))
 
 (defn auto-regen [in-dir output]
   (create-site in-dir output)
