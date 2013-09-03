@@ -244,9 +244,10 @@
 (defn auto-regen [in-dir output]
   (create-site in-dir output)
   (watch (fn [_ file]
-           (println)
-           (println "Regenerating site...")
-           (future (create-site in-dir output)))
+           (when (#{".md" ".markdown" ".css" ".clj"} (fs/extension file))
+             (do (println)
+                 (println "Regenerating site...")
+                 (future (create-site in-dir output)))))
          in-dir))
 
 (defn -main [& args]
