@@ -8,7 +8,11 @@
             [hiccup.page :refer [html5]]
             [clojure.tools.cli :refer [cli]]
             [clj-time.core :refer [year month day]]
-            [clj-time.format :refer [parse unparse formatters]]
+            [clj-time.format :refer [parse
+                                     unparse
+                                     formatter
+                                     formatters]]
+            [clj-time.local :refer [local-now]]
             [clj-time.coerce :refer [to-date]]
             [ecstatic.io :refer :all]
             [ecstatic.utils :refer :all]))
@@ -177,7 +181,7 @@
   "Write HTML files to location."
   [in-dir output]
   (println "Writing posts and pages...")
-  (doall (map (fn [post]
+  (doall (pmap (fn [post]
                 (let [file (:file post)
                       slug (page-url file)
                       metadata (metadata file)]
@@ -240,8 +244,7 @@
       (write-index in-dir output)
       (write-pages in-dir output)
       (generate-main-feed in-dir output)
-      (doall (map #(generate-tag-feed in-dir output %)
-                  (all-tags (all-pages in-dir))))
+      (pmap #(generate-tag-feed in-dir output %) (all-tags (all-pages in-dir)))
       (copy-resources in-dir output)
       (println "Successfully compiled site.")))
 
