@@ -26,3 +26,6 @@
         idx (.indexOf content "---" 4)]
     [(subs content 4 idx) (subs content (+ idx 4))]))
 
+(defn code-files [in-dir]
+  "Return a sequence of clojure files that represent the custom code in 'code/"
+  (regex-file-seq #".*\.clj" (io/file in-dir "code")))

@@ -237,10 +237,20 @@
                  (config in-dir)
                  output))
 
+(defn load-custom-code [in-dir]
+  "Load the custom code that can be placed in 'code/'."
+  (println "Loading custom code...")
+  (doall
+   (map (fn [file]
+          (binding [*ns* (the-ns 'ecstatic.core)]
+            (load-file (.getPath file))))
+        (code-files in-dir))))
+
 (defn create-site
   "Read and create posts."
   [in-dir output]
-  (do (prepare-dirs in-dir output)
+  (do (load-custom-code in-dir)
+      (prepare-dirs in-dir output)
       (write-index in-dir output)
       (write-pages in-dir output)
       (generate-main-feed in-dir output)
