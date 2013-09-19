@@ -15,7 +15,8 @@
             [clj-time.local :refer [local-now]]
             [clj-time.coerce :refer [to-date]]
             [ecstatic.io :refer :all]
-            [ecstatic.utils :refer :all]))
+            [ecstatic.utils :refer :all]
+            [ecstatic.code :as code]))
 
 (defn metadata
   "Returns map containing page metadata."
@@ -242,7 +243,7 @@
   (println "Loading custom code...")
   (doall
    (map (fn [file]
-          (binding [*ns* (the-ns 'ecstatic.core)]
+          (binding [*ns* (the-ns 'ecstatic.code)]
             (load-file (.getPath file))))
         (code-files in-dir))))
 
