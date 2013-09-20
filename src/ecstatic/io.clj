@@ -26,3 +26,17 @@
         idx (.indexOf content "---" 4)]
     [(subs content 4 idx) (subs content (+ idx 4))]))
 
+(defn snippet-files
+  ([in-dir]
+     (file-seq (io/file in-dir "snippets")))
+  ([in-dir name]
+     "Get the snippet file with the name 'name'"
+     (first (filter #(re-find (re-pattern name)) (snippet-files in-dir)))))
+
+;; TODO: refactor with higher order function!
+
+(defn markdown-file? [file]
+  (re-find #".*\.(md|markdown)" (.getPath file)))
+
+(defn clojure-file? [file]
+  (re-find #".*\.clj" (.getPath file)))
