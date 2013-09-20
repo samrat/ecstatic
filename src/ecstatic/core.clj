@@ -98,7 +98,7 @@
        (apply concat)
        (set)))
 
-(defn snippet [in-dir name]
+(defn ^:dynamic snippet [in-dir name]
   "Expects the name of a snippet and returns the corresponding html."
   (let [file (snippet-file in-dir name)]
     (cond
@@ -114,11 +114,13 @@
         template (read-template (str in-dir "/templates/" template ".clj"))
         base-content (binding [*ns* (the-ns 'ecstatic.core)
                                cont page-content
-                               met  page-metadata]
+                               met  page-metadata
+                               snippet (partial snippet in-dir)]
                        (html (eval template)))]
     (binding [*ns* (the-ns 'ecstatic.core)
               cont base-content
-              met  page-metadata]
+              met  page-metadata
+              snippet (partial snippet in-dir)]
       (html5 (eval base)))))
 
 (def related-posts
