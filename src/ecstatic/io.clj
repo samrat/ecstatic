@@ -27,11 +27,9 @@
 (defn clojure-file? [file]
   (re-find #".*\.clj" (.getPath file)))
 
-;;; TODO refactorto use 'markdown-file?'
 (defn md-files [in-dir]
   "Return a seq of markdown files from in-dir"
-  (concat (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "pages"))
-          (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "posts"))))
+  (filter markdown-file? (all-page-and-post-files in-dir)))
 
 (defn hiccup-files [in-dir]
   (filter clojure-file? (all-page-and-post-files in-dir)))
