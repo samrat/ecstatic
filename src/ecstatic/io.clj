@@ -11,6 +11,11 @@
 (defn read-template [path]
   (read-string (slurp path)))
 
+(defn all-page-and-post-files [in-dir]
+  "Get all files in the page and post directories"
+  (concat (file-seq (io/file in-dir "pages"))
+          (file-seq (io/file in-dir "posts"))))
+
 (defn- regex-file-seq
   "Lazily filter a directory based on regex."
   [regex in-dir]
@@ -28,10 +33,8 @@
   (concat (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "pages"))
           (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "posts"))))
 
-;;; TODO write some function that returns a file seq with all pages and posts.
 (defn hiccup-files [in-dir]
-  (filter clojure-file? (concat (file-seq (io/file in-dir "pages"))
-                                (file-seq (io/file in-dir "posts")))))
+  (filter clojure-file? (all-page-and-post-files in-dir)))
 
 (defn page-files [in-dir]
   (concat (md-files in-dir) (hiccup-files in-dir)))
