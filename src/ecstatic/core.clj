@@ -157,8 +157,7 @@
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
-                     {:content (md/to-html (content file) ;; multimethod here! :)
-                                           [:fenced-code-blocks])}
+                     {:content (split-and-to-html in-dir file)}
                      {:site-name (:site-name (config in-dir))
                       :site-url (:site-url (config in-dir))
                       :title (:title (metadata file))
