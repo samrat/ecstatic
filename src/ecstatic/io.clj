@@ -1,5 +1,6 @@
 (ns ecstatic.io
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [clojure.pprint :as pp])
   (:import [java.io PushbackReader]))
 
 (defn config [in-dir]
@@ -21,11 +22,14 @@
   [regex in-dir]
   (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
 
-(defn markdown-file? [file]
-  (re-find #".*\.(md|markdown)" (.getPath file)))
+(defn file-ending-predicate [& endings]
+  (let [regex (re-pattern (pp/cl-format nil ".*\\.(~{~a~^|~})" endings))]
+    (fn [file]
+      (re-find regex (.getPath file)))))
 
-(defn clojure-file? [file]
-  (re-find #".*\.clj" (.getPath file)))
+(def markdown-file? (file-ending-predicate "md" "markdown"))
+
+(def clojure-file? (file-ending-predicate "clj"))
 
 (defn md-files [in-dir]
   "Return a seq of markdown files from in-dir"
