@@ -62,7 +62,7 @@
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
                                                (parse (:date (metadata file)))))))
-            (md-files in-dir))
+            (page-files in-dir))
        (sort-by :date)
        (reverse)))
 
@@ -146,7 +146,7 @@
 (defmethod split-and-to-html :clojure [in-dir file]
   (binding [*ns* (the-ns 'ecstatic.core)
             snippet (partial snippet in-dir)]
-    (html (eval (content file)))))
+    (html (eval (read-string (content file))))))
 
 (defn render-page
   "Render HTML file from markdown file."
@@ -193,7 +193,7 @@
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
-                                 #{(str output "/feeds")} (md-files in-dir))]
+                                 #{(str output "/feeds")} (page-files in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
 (defn write-pages
@@ -217,6 +217,7 @@
       (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
 ;; Feed
+;;; TODO überarbeiten und split-and-to-html verwenden
 (defn generate-feed
   "Generate and write RSS feed."
   [posts tag config output]

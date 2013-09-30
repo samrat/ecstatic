@@ -16,10 +16,25 @@
   [regex in-dir]
   (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
 
+(defn markdown-file? [file]
+  (re-find #".*\.(md|markdown)" (.getPath file)))
+
+(defn clojure-file? [file]
+  (re-find #".*\.clj" (.getPath file)))
+
+;;; TODO refactorto use 'markdown-file?'
 (defn md-files [in-dir]
   "Return a seq of markdown files from in-dir"
   (concat (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "pages"))
           (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "posts"))))
+
+;;; TODO write some function that returns a file seq with all pages and posts.
+(defn hiccup-files [in-dir]
+  (filter clojure-file? (concat (file-seq (io/file in-dir "pages"))
+                                (file-seq (io/file in-dir "posts")))))
+
+(defn page-files [in-dir]
+  (concat (md-files in-dir) (hiccup-files in-dir)))
 
 (defn split-file [path]
   "Return [metadata content] from a markdown file."
@@ -36,12 +51,6 @@
                     (snippet-files in-dir)))))
 
 ;; TODO: refactor with higher order function!
-
-(defn markdown-file? [file]
-  (re-find #".*\.(md|markdown)" (.getPath file)))
-
-(defn clojure-file? [file]
-  (re-find #".*\.clj" (.getPath file)))
 
 (defn file-type [file]
   "A dispatch function for filetypes."
