@@ -100,7 +100,8 @@
 
 (defn ^:dynamic snippet [in-dir name]
   "Expects the name of a snippet and returns the corresponding html."
-  (let [file (snippet-file in-dir name)]
+  (let [file (snippet-files in-dir name)]
+    (println (str "read snippet" in-dir name))
     (cond
      (markdown-file? file) (md/to-html (slurp file))
      (clojure-file? file) (html (eval (read-template (.getPath file))))))) ; TODO refactor call
@@ -137,6 +138,16 @@
           (take n)
           (map key)))))
 
+(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
+
+(defmethod split-and-to-html :markdown [in-dir file]
+  (md/to-html (content file) [:fenced-code-blocks]))
+
+(defmethod split-and-to-html :clojure [in-dir file]
+  (binding [*ns* (the-ns 'ecstatic.core)
+            snippet (partial snippet in-dir)]
+    (html (eval (content file)))))
+
 (defn render-page
   "Render HTML file from markdown file."
   [post in-dir & template]
@@ -146,7 +157,7 @@
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
-                     {:content (md/to-html (content file)
+                     {:content (md/to-html (content file) ;; multimethod here! :)
                                            [:fenced-code-blocks])}
                      {:site-name (:site-name (config in-dir))
                       :site-url (:site-url (config in-dir))
