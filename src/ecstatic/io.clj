@@ -11,14 +11,33 @@
 (defn read-template [path]
   (read-string (slurp path)))
 
+(defn all-page-and-post-files [in-dir]
+  "Get all files in the page and post directories"
+  (concat (file-seq (io/file in-dir "pages"))
+          (file-seq (io/file in-dir "posts"))))
+
 (defn- regex-file-seq
   "Lazily filter a directory based on regex."
   [regex in-dir]
   (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
 
+(defn markdown-file? [file]
+  (re-find #".*\.(md|markdown)" (.getPath file)))
+
+(defn clojure-file? [file]
+  (re-find #".*\.clj" (.getPath file)))
+
+;;; TODO refactorto use 'markdown-file?'
 (defn md-files [in-dir]
   "Return a seq of markdown files from in-dir"
-  (regex-file-seq #".*\.(md|markdown)" in-dir))
+  (concat (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "pages"))
+          (regex-file-seq #".*\.(md|markdown)" (io/file in-dir "posts"))))
+
+(defn hiccup-files [in-dir]
+  (filter clojure-file? (all-page-and-post-files in-dir)))
+
+(defn page-files [in-dir]
+  (concat (md-files in-dir) (hiccup-files in-dir)))
 
 (defn split-file [path]
   "Return [metadata content] from a markdown file."
@@ -31,12 +50,12 @@
      (file-seq (io/file in-dir "snippets")))
   ([in-dir name]
      "Get the snippet file with the name 'name'"
-     (first (filter #(re-find (re-pattern name)) (snippet-files in-dir)))))
+     (first (filter #(re-find (re-pattern name) (.getPath %))
+                    (snippet-files in-dir)))))
 
 ;; TODO: refactor with higher order function!
 
-(defn markdown-file? [file]
-  (re-find #".*\.(md|markdown)" (.getPath file)))
-
-(defn clojure-file? [file]
-  (re-find #".*\.clj" (.getPath file)))
+(defn file-type [file]
+  "A dispatch function for filetypes."
+  (cond (markdown-file? file) :markdown
+        (clojure-file? file) :clojure))
