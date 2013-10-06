@@ -55,9 +55,11 @@
      (first (filter #(re-find (re-pattern name) (.getPath %))
                     (snippet-files in-dir)))))
 
-;; TODO: refactor with higher order function!
-
 (defn file-type [file]
   "A dispatch function for filetypes."
   (cond (markdown-file? file) :markdown
         (clojure-file? file) :clojure))
+
+(defn code-files [in-dir]
+  "Return a sequence of clojure files that represent the custom code in 'code/"
+  (regex-file-seq #".*\.clj" (io/file in-dir "code")))
