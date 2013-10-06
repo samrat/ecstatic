@@ -62,7 +62,7 @@
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
                                                (parse (:date (metadata file)))))))
-            (md-files in-dir))
+            (page-files in-dir))
        (sort-by :date)
        (reverse)))
 
@@ -98,6 +98,13 @@
        (apply concat)
        (set)))
 
+(defn ^:dynamic snippet [in-dir name]
+  "Expects the name of a snippet and returns the corresponding html."
+  (let [file (snippet-files in-dir name)]
+    (cond
+     (markdown-file? file) (md/to-html (slurp file))
+     (clojure-file? file) (html (eval (read-template (.getPath file))))))) ; TODO refactor call
+
 (def ^:dynamic cont nil)
 (def ^:dynamic met nil)
 
@@ -107,11 +114,13 @@
         template (read-template (str in-dir "/templates/" template ".clj"))
         base-content (binding [*ns* (the-ns 'ecstatic.core)
                                cont page-content
-                               met  page-metadata]
+                               met  page-metadata
+                               snippet (partial snippet in-dir)]
                        (html (eval template)))]
     (binding [*ns* (the-ns 'ecstatic.core)
               cont base-content
-              met  page-metadata]
+              met  page-metadata
+              snippet (partial snippet in-dir)]
       (html5 (eval base)))))
 
 (def related-posts
@@ -128,6 +137,16 @@
           (take n)
           (map key)))))
 
+(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
+
+(defmethod split-and-to-html :markdown [in-dir file]
+  (md/to-html (content file) [:fenced-code-blocks]))
+
+(defmethod split-and-to-html :clojure [in-dir file]
+  (binding [*ns* (the-ns 'ecstatic.core)
+            snippet (partial snippet in-dir)]
+    (html (eval (read-string (content file))))))
+
 (defn render-page
   "Render HTML file from markdown file."
   [post in-dir & template]
@@ -137,8 +156,7 @@
         [prev next] (pager (all-pages in-dir) post)]
     (render-template in-dir
                      template
-                     {:content (md/to-html (content file)
-                                           [:fenced-code-blocks])}
+                     {:content (split-and-to-html in-dir file)}
                      {:site-name (:site-name (config in-dir))
                       :site-url (:site-url (config in-dir))
                       :title (:title (metadata file))
@@ -174,7 +192,7 @@
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
-                                 #{(str output "/feeds")} (md-files in-dir))]
+                                 #{(str output "/feeds")} (page-files in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
 (defn write-pages
@@ -213,8 +231,7 @@
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
-                                   (md/to-html (content post)
-                                               [:fenced-code-blocks])})))
+                                   (split-and-to-html post)})))
                       [{:title (:site-name config)
                         :link (:site-url config)
                         :description (:site-description config)
