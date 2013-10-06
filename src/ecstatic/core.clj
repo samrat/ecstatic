@@ -101,7 +101,6 @@
 (defn ^:dynamic snippet [in-dir name]
   "Expects the name of a snippet and returns the corresponding html."
   (let [file (snippet-files in-dir name)]
-    (println (str "read snippet" in-dir name))
     (cond
      (markdown-file? file) (md/to-html (slurp file))
      (clojure-file? file) (html (eval (read-template (.getPath file))))))) ; TODO refactor call
