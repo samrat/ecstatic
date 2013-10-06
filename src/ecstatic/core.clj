@@ -217,7 +217,6 @@
       (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
 ;; Feed
-;;; TODO überarbeiten und split-and-to-html verwenden
 (defn generate-feed
   "Generate and write RSS feed."
   [posts tag config output]
@@ -233,8 +232,7 @@
                                    :pubDate (to-date date)
                                    :author (:site-author config)
                                    :description
-                                   (md/to-html (content post)
-                                               [:fenced-code-blocks])})))
+                                   (split-and-to-html post)})))
                       [{:title (:site-name config)
                         :link (:site-url config)
                         :description (:site-description config)
