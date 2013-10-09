@@ -4,8 +4,6 @@
             [fs.core :as fs]
             [clj-rss.core :as rss]
             [filevents.core :refer :all]
-            [hiccup.core :refer :all]
-            [hiccup.page :refer [html5]]
             [clojure.tools.cli :refer [cli]]
             [clj-time.core :refer [year month day]]
             [clj-time.format :refer [parse
@@ -15,7 +13,8 @@
             [clj-time.local :refer [local-now]]
             [clj-time.coerce :refer [to-date]]
             [ecstatic.io :refer :all]
-            [ecstatic.utils :refer :all]))
+            [ecstatic.utils :refer :all]
+            [ecstatic.render :refer [render-template]]))
 
 (defn metadata
   "Returns map containing page metadata."
@@ -97,22 +96,6 @@
        (map :tags)
        (apply concat)
        (set)))
-
-(def ^:dynamic cont nil)
-(def ^:dynamic met nil)
-
-(defn render-template
-  [in-dir template page-content page-metadata]
-  (let [base (read-template (str in-dir "/templates/base.clj"))
-        template (read-template (str in-dir "/templates/" template ".clj"))
-        base-content (binding [*ns* (the-ns 'ecstatic.core)
-                               cont page-content
-                               met  page-metadata]
-                       (html (eval template)))]
-    (binding [*ns* (the-ns 'ecstatic.core)
-              cont base-content
-              met  page-metadata]
-      (html5 (eval base)))))
 
 (def related-posts
   ^{:doc "Returns n posts related to `post`."}
