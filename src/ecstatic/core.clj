@@ -6,7 +6,6 @@
             [filevents.core :refer :all]
             [hiccup.core :refer :all]
             [hiccup.page :refer [html5]]
-            [clojure.tools.cli :refer [cli]]
             [clj-time.core :refer [year month day]]
             [clj-time.format :refer [parse
                                      unparse
@@ -14,11 +13,9 @@
                                      formatters]]
             [clj-time.local :refer [local-now]]
             [clj-time.coerce :refer [to-date]]
-            [ecstatic.io :refer :all]
-            [ecstatic.utils :refer :all]
-            [ecstatic.code :as code]))
+            [ecstatic.io :refer :all]))
 
-(def in (atom nil))
+(def ^:dynamic *in-dir* nil)
 
 (defn file-metadata
   "Returns map containing page metadata."
@@ -101,13 +98,25 @@
        (apply concat)
        (set)))
 
+(defn render-hiccup [in-dir hiccup-data]
+  (binding [*ns* (the-ns 'ecstatic.render)
+            *in-dir* in-dir]
+    (html (eval hiccup-data))))
 
-(defn ^:dynamic snippet [in-dir name]
+(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
+
+(defmethod split-and-to-html :markdown [in-dir file]
+  (md/to-html (file-content file) [:fenced-code-blocks]))
+
+(defmethod split-and-to-html :clojure [in-dir file]
+  (render-hiccup in-dir (read-string (file-content file))))
+
+(defn snippet [in-dir name]
   "Expects the name of a snippet and returns the corresponding html."
   (let [file (snippet-files in-dir name)]
     (cond
      (markdown-file? file) (md/to-html (slurp file))
-     (clojure-file? file) (html (eval (read-template (.getPath file))))))) ; TODO refactor call
+     (clojure-file? file) (render-hiccup in-dir (read-template (.getPath file)))))) ; TODO refactor call
 
 (def ^:dynamic content nil)
 (def ^:dynamic metadata nil)
@@ -116,16 +125,12 @@
   [in-dir template cont meta]
   (let [base (read-template (str in-dir "/templates/base.clj"))
         template (read-template (str in-dir "/templates/" template ".clj"))
-        base-content (binding [*ns* (the-ns 'ecstatic.core)
-                               content cont
-                               metadata  meta
-                               snippet (partial snippet in-dir)]
-                       (html (eval template)))]
-    (binding [*ns* (the-ns 'ecstatic.core)
-              content base-content
-              metadata  meta
-              snippet (partial snippet in-dir)]
-      (html5 (eval base)))))
+        base-content (binding [content cont
+                               metadata  meta]
+                       (render-hiccup in-dir template))]
+    (binding [content base-content
+              metadata  meta]
+      (html5 (render-hiccup in-dir base)))))
 
 (def related-posts
   ^{:doc "Returns n posts related to `post`."}
@@ -141,15 +146,6 @@
           (take n)
           (map key)))))
 
-(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
-
-(defmethod split-and-to-html :markdown [in-dir file]
-  (md/to-html (file-content file) [:fenced-code-blocks]))
-
-(defmethod split-and-to-html :clojure [in-dir file]
-  (binding [*ns* (the-ns 'ecstatic.core)
-            snippet (partial snippet in-dir)]
-    (html (eval (read-string (file-content file))))))
 
 (defn render-page
   "Render HTML file from markdown file."
@@ -263,15 +259,15 @@
   (println "Loading custom code...")
   (doall
    (map (fn [file]
-          (binding [*ns* (the-ns 'ecstatic.code)]
+          (binding [*ns* (the-ns 'ecstatic.code)
+                    *in-dir* in-dir]
             (load-file (.getPath file))))
         (code-files in-dir))))
 
 (defn create-site
   "Read and create posts."
   [in-dir output]
-  (do (reset! in in-dir)
-      (load-custom-code in-dir)
+  (do (load-custom-code in-dir)
       (prepare-dirs in-dir output)
       (write-index in-dir output)
       (write-pages in-dir output)
@@ -288,18 +284,3 @@
                  (println "Regenerating site...")
                  (future (create-site in-dir output)))))
          in-dir))
-
-(defn -main [& args]
-  (let [[opts args banner] (cli args
-                              ["-h" "--help" "Print this help text and exit"]
-                              ["-s" "--src" "Source for site."]
-                              ["-o" "--output" "Output for site." :default "./_site"]
-                              ["-p" "--preview" "Run jetty server on http://localhost:8080"]
-                              ["-w" "--watch" "Auto site generation."])
-        {:keys [help preview src output watch]} opts]
-    (when help
-      (println banner)
-      (System/exit 0))
-    (cond src (create-site src output)
-          preview (serve preview)
-          watch (auto-regen watch output))))

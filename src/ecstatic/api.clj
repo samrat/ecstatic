@@ -1,4 +1,10 @@
 (ns ecstatic.api
-  (:require [ecstatic.core :refer [in]]))
+  (:use [ecstatic.core :only [content metadata] :as core]))
 
-(def all-posts (partial ecstatic.core/all-pages (str @in "/posts")))
+(def page-url core/page-url)
+
+(defn all-posts []
+  (core/all-pages (str core/*in-dir* "/posts")))
+
+(defn snippet [name]
+  (core/snippet core/*in-dir* name))
