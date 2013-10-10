@@ -118,18 +118,18 @@
      (markdown-file? file) (md/to-html (slurp file))
      (clojure-file? file) (render-hiccup in-dir (read-template (.getPath file)))))) ; TODO refactor call
 
-(def ^:dynamic content nil)
-(def ^:dynamic metadata nil)
+(def ^:dynamic *content* nil)
+(def ^:dynamic *metadata* nil)
 
 (defn render-template
   [in-dir template cont meta]
   (let [base (read-template (str in-dir "/templates/base.clj"))
         template (read-template (str in-dir "/templates/" template ".clj"))
-        base-content (binding [content cont
-                               metadata  meta]
+        base-content (binding [*content* cont
+                               *metadata*  meta]
                        (render-hiccup in-dir template))]
-    (binding [content base-content
-              metadata  meta]
+    (binding [*content* base-content
+              *metadata*  meta]
       (html5 (render-hiccup in-dir base)))))
 
 (def related-posts

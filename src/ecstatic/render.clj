@@ -8,4 +8,4 @@ The namespace also provides shortcuts for hiccup namespaces"
         [hiccup.util :as hutil]
         [ecstatic.code :as code]
         [ecstatic.api]
-        [ecstatic.core :only [metadata content]]))
+        [ecstatic.core :only [*metadata* *content*]]))
