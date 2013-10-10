@@ -5,7 +5,12 @@
 (def page-url core/page-url)
 
 (defn all-posts []
-  (core/all-pages (str core/*in-dir* "/posts")))
+  (filter #(re-find #"[/\\]posts[/\\]" (-> % :file .getPath))
+          (core/all-pages core/*in-dir*)))
+
+(defn all-pages []
+  (filter #(re-find #"[/\\]pages[/\\]" (-> % :file .getPath))
+          (core/all-pages core/*in-dir*)))
 
 (defn snippet [name]
   (core/snippet core/*in-dir* name))
