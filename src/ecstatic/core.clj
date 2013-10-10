@@ -1,24 +1,23 @@
 (ns ecstatic.core
   (:gen-class)
+  (:use [filevents.core]
+        [hiccup.core]
+        [hiccup.page :only [html5]]
+        [clj-time.core :only [year month day]]
+        [clj-time.format :only [parse
+                                 unparse
+                                 formatter
+                                 formatters]]
+        [clj-time.local :only [local-now]]
+        [clj-time.coerce :only [to-date]]
+        [ecstatic.io])
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [clj-rss.core :as rss]
-            [filevents.core :refer :all]
-            [hiccup.core :refer :all]
-            [hiccup.page :refer [html5]]
-            [clojure.tools.cli :refer [cli]]
-            [clj-time.core :refer [year month day]]
-            [clj-time.format :refer [parse
-                                     unparse
-                                     formatter
-                                     formatters]]
-            [clj-time.local :refer [local-now]]
-            [clj-time.coerce :refer [to-date]]
-            [ecstatic.io :refer :all]
-            [ecstatic.utils :refer :all]
-            [ecstatic.code :as code]))
+            [clj-rss.core :as rss]))
 
-(defn metadata
+(def ^:dynamic *in-dir* nil)
+
+(defn file-metadata
   "Returns map containing page metadata."
   [path]
   (let [meta (first (split-file path))]
@@ -35,7 +34,7 @@
                   h)))
             {} (re-seq #"([^:#\+]+): (.+)(\n|$)" meta))))
 
-(defn content
+(defn file-content
   "Return the page content."
   [path]
   (second (split-file path)))
@@ -58,11 +57,11 @@
   "List of maps containing post-info."
   [in-dir]
   (->> (map (fn [file]
-              (-> (assoc (metadata file) :file file)
+              (-> (assoc (file-metadata file) :file file)
                   (assoc :url (page-url file))
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
-                                               (parse (:date (metadata file)))))))
+                                               (parse (:date (file-metadata file)))))))
             (page-files in-dir))
        (sort-by :date)
        (reverse)))
@@ -99,30 +98,39 @@
        (apply concat)
        (set)))
 
-(defn ^:dynamic snippet [in-dir name]
+(defn render-hiccup [in-dir hiccup-data]
+  (binding [*ns* (the-ns 'ecstatic.render)
+            *in-dir* in-dir]
+    (html (eval hiccup-data))))
+
+(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
+
+(defmethod split-and-to-html :markdown [in-dir file]
+  (md/to-html (file-content file) [:fenced-code-blocks]))
+
+(defmethod split-and-to-html :clojure [in-dir file]
+  (render-hiccup in-dir (read-string (file-content file))))
+
+(defn snippet [in-dir name]
   "Expects the name of a snippet and returns the corresponding html."
   (let [file (snippet-files in-dir name)]
     (cond
      (markdown-file? file) (md/to-html (slurp file))
-     (clojure-file? file) (html (eval (read-template (.getPath file))))))) ; TODO refactor call
+     (clojure-file? file) (render-hiccup in-dir (read-template (.getPath file)))))) ; TODO refactor call
 
-(def ^:dynamic cont nil)
-(def ^:dynamic met nil)
+(def ^:dynamic *content* nil)
+(def ^:dynamic *metadata* nil)
 
 (defn render-template
-  [in-dir template page-content page-metadata]
+  [in-dir template cont meta]
   (let [base (read-template (str in-dir "/templates/base.clj"))
         template (read-template (str in-dir "/templates/" template ".clj"))
-        base-content (binding [*ns* (the-ns 'ecstatic.core)
-                               cont page-content
-                               met  page-metadata
-                               snippet (partial snippet in-dir)]
-                       (html (eval template)))]
-    (binding [*ns* (the-ns 'ecstatic.core)
-              cont base-content
-              met  page-metadata
-              snippet (partial snippet in-dir)]
-      (html5 (eval base)))))
+        base-content (binding [*content* cont
+                               *metadata*  meta]
+                       (render-hiccup in-dir template))]
+    (binding [*content* base-content
+              *metadata*  meta]
+      (html5 (render-hiccup in-dir base)))))
 
 (def related-posts
   ^{:doc "Returns n posts related to `post`."}
@@ -138,15 +146,6 @@
           (take n)
           (map key)))))
 
-(defmulti split-and-to-html (fn [in-dir file] (file-type file)))
-
-(defmethod split-and-to-html :markdown [in-dir file]
-  (md/to-html (content file) [:fenced-code-blocks]))
-
-(defmethod split-and-to-html :clojure [in-dir file]
-  (binding [*ns* (the-ns 'ecstatic.core)
-            snippet (partial snippet in-dir)]
-    (html (eval (read-string (content file))))))
 
 (defn render-page
   "Render HTML file from markdown file."
@@ -160,12 +159,12 @@
                      {:content (split-and-to-html in-dir file)}
                      {:site-name (:site-name (config in-dir))
                       :site-url (:site-url (config in-dir))
-                      :title (:title (metadata file))
+                      :title (:title (file-metadata file))
                       :url   (page-url file)
-                      :date (:date (metadata file))
+                      :date (:date (file-metadata file))
                       :human-readable-date (unparse
                              (formatter "dd MMMMM, YYYY")
-                             (parse (:date (metadata file))))
+                             (parse (:date (file-metadata file))))
                       :prev (or nil prev)
                       :next (or nil next)
                       :related-posts (related-posts in-dir
@@ -203,7 +202,7 @@
   (doall (pmap (fn [post]
                 (let [file (:file post)
                       slug (page-url file)
-                      metadata (metadata file)]
+                      metadata (file-metadata file)]
                   (spit (str output "/" slug "/index.html")
                         (render-page post in-dir (or (:template metadata)
                                                      nil)))))
@@ -222,7 +221,7 @@
   [posts tag config output]
   (->> (apply rss/channel-xml
               (reduce (fn [p post]
-                        (let [metadata (metadata post)
+                        (let [metadata (file-metadata post)
                               date (parse (:date metadata))]
                           (conj p {:title (:title metadata)
                                    :link (str (:site-url config)
@@ -260,7 +259,8 @@
   (println "Loading custom code...")
   (doall
    (map (fn [file]
-          (binding [*ns* (the-ns 'ecstatic.code)]
+          (binding [*ns* (the-ns 'ecstatic.code)
+                    *in-dir* in-dir]
             (load-file (.getPath file))))
         (code-files in-dir))))
 
@@ -284,18 +284,3 @@
                  (println "Regenerating site...")
                  (future (create-site in-dir output)))))
          in-dir))
-
-(defn -main [& args]
-  (let [[opts args banner] (cli args
-                              ["-h" "--help" "Print this help text and exit"]
-                              ["-s" "--src" "Source for site."]
-                              ["-o" "--output" "Output for site." :default "./_site"]
-                              ["-p" "--preview" "Run jetty server on http://localhost:8080"]
-                              ["-w" "--watch" "Auto site generation."])
-        {:keys [help preview src output watch]} opts]
-    (when help
-      (println banner)
-      (System/exit 0))
-    (cond src (create-site src output)
-          preview (serve preview)
-          watch (auto-regen watch output))))
