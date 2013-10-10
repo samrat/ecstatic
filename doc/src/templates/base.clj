@@ -6,11 +6,10 @@
   [:title "Ecstatic"]
   (hpage/include-css "/resources/css/bootstrap.css")]
  [:body
-  [:div {:class "navbar navbar-static-top"}
+  [:div {:class "navbar navbar-static-top navbar-inverse"}
    [:div {:class "container"}
     [:a {:class "navbar-brand" :href "/index.html"} "Ecstatic"]
     (helem/unordered-list {:class "nav navbar-nav"}
-                          (do (println (all-pages))
-                              (for [page (all-pages)]
-                                (helem/link-to (:url page) (:title page)))))]]
+                          (for [page (all-pages)]
+                            (helem/link-to (:url page) (:title page))))]]
   [:div {:class "container"} *content*]]]
