@@ -5,6 +5,7 @@ The core module relies on the api, code and render namespaces being
 correctly initialized. This ensures that those namespaces are loaded."
   (:gen-class)
   (:use [ecstatic.core]
+        [ecstatic.io :only [create-directory-scaffold]]
         [clojure.tools.cli :only [cli]]
         [ecstatic.utils])
   (:require [ecstatic.render]
@@ -17,11 +18,13 @@ correctly initialized. This ensures that those namespaces are loaded."
                               ["-s" "--src" "Source for site."]
                               ["-o" "--output" "Output for site." :default "./_site"]
                               ["-p" "--preview" "Run jetty server on http://localhost:8080"]
-                              ["-w" "--watch" "Auto site generation."])
-        {:keys [help preview src output watch]} opts]
+                              ["-w" "--watch" "Auto site generation."]
+                              ["-n" "--new" "Create a scaffold for a new project"])
+        {:keys [help preview src output watch new]} opts]
     (when help
       (println banner)
       (System/exit 0))
     (cond src (create-site src output)
           preview (serve preview)
-          watch (auto-regen watch output))))
+          watch (auto-regen watch output)
+          new (create-directory-scaffold new))))
