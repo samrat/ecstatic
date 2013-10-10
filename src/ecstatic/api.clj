@@ -1,5 +1,6 @@
 (ns ecstatic.api
-  (:use [ecstatic.core :only [*content* *metadata*] :as core]))
+  (:use [ecstatic.core :only [*content* *metadata*]])
+  (:require [ecstatic.core :as core]))
 
 (def page-url core/page-url)
 

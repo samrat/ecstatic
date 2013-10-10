@@ -1,19 +1,19 @@
 (ns ecstatic.core
   (:gen-class)
+  (:use [filevents.core]
+        [hiccup.core]
+        [hiccup.page :only [html5]]
+        [clj-time.core :only [year month day]]
+        [clj-time.format :only [parse
+                                 unparse
+                                 formatter
+                                 formatters]]
+        [clj-time.local :only [local-now]]
+        [clj-time.coerce :only [to-date]]
+        [ecstatic.io])
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [clj-rss.core :as rss]
-            [filevents.core :refer :all]
-            [hiccup.core :refer :all]
-            [hiccup.page :refer [html5]]
-            [clj-time.core :refer [year month day]]
-            [clj-time.format :refer [parse
-                                     unparse
-                                     formatter
-                                     formatters]]
-            [clj-time.local :refer [local-now]]
-            [clj-time.coerce :refer [to-date]]
-            [ecstatic.io :refer :all]))
+            [clj-rss.core :as rss]))
 
 (def ^:dynamic *in-dir* nil)
 

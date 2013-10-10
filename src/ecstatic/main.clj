@@ -4,12 +4,12 @@
 The core module relies on the api, code and render namespaces being
 correctly initialized. This ensures that those namespaces are loaded."
   (:gen-class)
-  (:require [ecstatic.core :refer :all]
-            [ecstatic.render]
+  (:use [ecstatic.core]
+        [clojure.tools.cli :only [cli]]
+        [ecstatic.utils])
+  (:require [ecstatic.render]
             [ecstatic.api]
-            [ecstatic.code]
-            [clojure.tools.cli :refer [cli]]
-            [ecstatic.utils :refer :all]))
+            [ecstatic.code]))
 
 (defn -main [& args]
   (let [[opts args banner] (cli args
