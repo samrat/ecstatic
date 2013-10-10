@@ -63,3 +63,22 @@
 (defn code-files [in-dir]
   "Return a sequence of clojure files that represent the custom code in 'code/"
   (regex-file-seq #".*\.clj" (io/file in-dir "code")))
+
+(defn create-directory-scaffold [base-dir]
+  "Create the scaffold for a new website project under 'base-dir'."
+  (println "Creating directory scaffold.")
+  (doall (for [dir ["pages"
+                    "posts"
+                    "resources"
+                    "templates"
+                    "snippets"
+                    "code"]]
+           (io/make-parents (io/file base-dir "src" dir "dummy"))))
+  (io/make-parents (io/file base-dir "site" "dummy"))
+  (doall (for [path [["templates" "base.clj"]
+                     ["templates" "index.clj"]
+                     ["templates" "page.clj"]
+                     ["templates" "post.clj"]]]
+           (spit (apply io/file base-dir "src" path) "")))
+  (spit (io/file base-dir ".gitignore") "site/*\nsrc/target/*")
+  nil)
