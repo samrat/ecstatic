@@ -16,6 +16,8 @@
             [ecstatic.utils :refer :all]
             [ecstatic.render :refer [render-template]]))
 
+(def in (atom nil))
+
 (defn metadata
   "Returns map containing page metadata."
   [path]
@@ -223,7 +225,8 @@
 (defn create-site
   "Read and create posts."
   [in-dir output]
-  (do (prepare-dirs in-dir output)
+  (do (reset! in in-dir)
+      (prepare-dirs in-dir output)
       (write-index in-dir output)
       (write-pages in-dir output)
       (generate-main-feed in-dir output)
