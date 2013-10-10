@@ -6,6 +6,7 @@ The namespace also provides shortcuts for hiccup namespaces"
             [hiccup.element :as helem]
             [hiccup.form :as hform]
             [hiccup.util :as hutil]
+            [hiccup.page :as hpage]
             [ecstatic.code :as code])
   (:use [ecstatic.api]
         [ecstatic.core :only  [*metadata* *content*]]))

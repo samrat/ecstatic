@@ -7,4 +7,5 @@ definitions that use hiccup."
             [hiccup.element :as helem]
             [hiccup.form :as hform]
             [hiccup.util :as hutil]
+            [hiccup.page :as hpage]
             [ecstatic.api :as api]))
