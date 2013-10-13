@@ -123,14 +123,10 @@
 
 (defn render-template
   [in-dir template cont meta]
-  (let [base (read-template (str in-dir "/templates/base.clj"))
-        template (read-template (str in-dir "/templates/" template ".clj"))
-        base-content (binding [*content* cont
-                               *metadata*  meta]
-                       (render-hiccup in-dir template))]
-    (binding [*content* base-content
+  (let [template (read-template (str in-dir "/templates/" template ".clj"))]
+    (binding [*content* cont
               *metadata*  meta]
-      (html5 (render-hiccup in-dir base)))))
+      (html5 (render-hiccup in-dir template)))))
 
 (def related-posts
   ^{:doc "Returns n posts related to `post`."}
