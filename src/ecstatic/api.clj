@@ -1,5 +1,6 @@
 (ns ecstatic.api
-  (:use [ecstatic.core :only [*content* *metadata*]])
+  (:use [ecstatic.core :only [*content* *metadata*]]
+        [hiccup.core :only [html]])
   (:require [ecstatic.core :as core]))
 
 (def page-url core/page-url)
@@ -14,3 +15,12 @@
 
 (defn snippet [name]
   (core/snippet core/*in-dir* name))
+
+(defn with-base-template [template-name hiccup-content]
+  "Wrap the hiccup markup 'hiccup-content' in the template with the
+name 'template-name'."
+  (let [content (html hiccup-content)]
+    (core/render-template-partially core/*in-dir*
+                                    template-name
+                                    content
+                                    *metadata*)))

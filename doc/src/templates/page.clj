@@ -1,1 +1,2 @@
-[:div (:content *content*)]
+(with-base-template "base"
+  [:div (:content *content*)])
