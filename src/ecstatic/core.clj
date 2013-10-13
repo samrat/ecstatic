@@ -121,12 +121,24 @@
 (def ^:dynamic *content* nil)
 (def ^:dynamic *metadata* nil)
 
+(defn render-template-content
+  "Render the hiccup template 'template-content' without wrapping it with the doctype."
+  [in-dir template-content cont meta]
+  (binding [*content* cont
+            *metadata*  meta]
+    (render-hiccup in-dir template-content)))
+
+(defn render-template-partially
+  "Render the template with the name 'template-name' without wrapping it with
+the doctype."
+  [in-dir template-name cont meta]
+  (let [template (read-template (str in-dir "/templates/" template-name ".clj"))]
+    (render-template-content in-dir template cont meta)))
+
 (defn render-template
-  [in-dir template cont meta]
-  (let [template (read-template (str in-dir "/templates/" template ".clj"))]
-    (binding [*content* cont
-              *metadata*  meta]
-      (html5 (render-hiccup in-dir template)))))
+  "Fully render the template 'template' to a html5 page."
+  [in-dir template-name cont meta]
+  (html5 (render-template-partially in-dir template-name cont meta)))
 
 (def related-posts
   ^{:doc "Returns n posts related to `post`."}
