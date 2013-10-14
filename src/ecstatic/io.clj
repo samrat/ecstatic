@@ -86,7 +86,7 @@
                          :site-description "FIXME: Enter a site description"
                          :site-author "FIXME: Enter author's name"}]
     (spit (io/file base-dir "src" "config.clj")
-          (str scaffold-config)))
+          (with-out-str (clojure.pprint/pprint scaffold-config))))
   
   (spit (io/file base-dir ".gitignore") "site/*\nsrc/target/*")
   nil)
