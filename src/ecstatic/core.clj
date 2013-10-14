@@ -13,7 +13,11 @@
         [ecstatic.io])
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
-            [clj-rss.core :as rss]))
+            [clj-rss.core :as rss]
+            [taoensso.timbre :as timbre
+             :refer (info warn error with-log-level)]))
+
+(timbre/set-config! [:timestamp-pattern] "HH:mm:ss")
 
 (def ^:dynamic *in-dir* nil)
 
@@ -183,7 +187,7 @@ the doctype."
 (defn generate-index
   "Generate content for index.html"
   [in-dir]
-  (println "Generating index...")
+  (info "Generating index...")
   (render-template in-dir
                    "index"
                    (all-pages (str in-dir "/posts"))
@@ -196,7 +200,7 @@ the doctype."
 (defn prepare-dirs
   "Prepare directory structure."
   [in-dir output]
-  (println "Preparing directory structure...")
+  (info "Preparing directory structure...")
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
@@ -206,7 +210,7 @@ the doctype."
 (defn write-pages
   "Write HTML files to location."
   [in-dir output]
-  (println "Writing posts and pages...")
+  (info "Writing posts and pages...")
   (doall (pmap (fn [post]
                 (let [file (:file post)
                       slug (page-url file)
@@ -219,7 +223,7 @@ the doctype."
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
   [in-dir output]
-  (println "Copying resources...")
+  (info "Copying resources...")
   (do (fs/delete-dir (str output "/resources"))
       (fs/copy-dir (str in-dir "/resources") (str output "/resources"))))
 
@@ -248,7 +252,7 @@ the doctype."
        (spit (str output "/feeds/" tag ".xml"))))
 
 (defn generate-main-feed [in-dir output]
-  (println "Generating main feed...")
+  (info "Generating main feed...")
   (generate-feed (map :file (all-pages (str in-dir "/posts")))
                  "all"
                  (config in-dir)
@@ -262,9 +266,10 @@ the doctype."
                  (config in-dir)
                  output))
 
-(defn load-custom-code [in-dir]
+(defn load-custom-code
   "Load the custom code that can be placed in 'code/'."
-  (println "Loading custom code...")
+  [in-dir]
+  (info "Loading custom code...")
   (doall
    (map (fn [file]
           (binding [*ns* (the-ns 'ecstatic.code)
@@ -282,13 +287,12 @@ the doctype."
       (generate-main-feed in-dir output)
       (pmap #(generate-tag-feed in-dir output %) (all-tags (all-pages in-dir)))
       (copy-resources in-dir output)
-      (println "Successfully compiled site.")))
+      (info "Successfully compiled site.")))
 
 (defn auto-regen [in-dir output]
   (create-site in-dir output)
   (watch (fn [_ file]
            (when (#{".md" ".markdown" ".css" ".clj"} (fs/extension file))
-             (do (println)
-                 (println "Regenerating site...")
+             (do (info "Regenerating site...")
                  (future (create-site in-dir output)))))
          in-dir))

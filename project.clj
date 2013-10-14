@@ -12,7 +12,8 @@
                  [org.clojure/tools.cli "0.2.2"]
                  [ring/ring-core "1.0.3"]
                  [ring/ring-jetty-adapter "1.0.3"]
-                 [me.raynes/cegdown "0.1.0"]]
+                 [me.raynes/cegdown "0.1.0"]
+                 [com.taoensso/timbre "2.6.2"]]
   :main ecstatic.main
   :bin {:name "ecstatic"
         :bin-path "~/bin"})
