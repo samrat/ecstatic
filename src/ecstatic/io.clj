@@ -52,8 +52,10 @@
      (file-seq (io/file in-dir "snippets")))
   ([in-dir name]
      "Get the snippet file with the name 'name'"
-     (first (filter #(re-find (re-pattern name) (.getPath %))
-                    (snippet-files in-dir)))))
+     (or (first (filter #(re-find (re-pattern name) (.getPath %))
+                        (snippet-files in-dir)))
+         (do (error "No snippet with name" name)
+             (System/exit 0)))))
 
 (defn file-type [file]
   "A dispatch function for filetypes."
