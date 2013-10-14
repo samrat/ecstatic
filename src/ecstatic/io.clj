@@ -1,16 +1,24 @@
 (ns ecstatic.io
   (:require [clojure.java.io :as io]
-            [clojure.pprint :as pp])
+            [clojure.pprint :as pp]
+            [taoensso.timbre :as timbre
+             :refer (warn error with-log-level)])
   (:import [java.io PushbackReader]))
 
 (defn config [in-dir]
   "Read config file"
   (binding [*read-eval* false]
-    (with-open [r (io/reader (str in-dir "/config.clj"))]
-      (read (PushbackReader. r)))))
+    (try (with-open [r (io/reader (str in-dir "/config.clj"))]
+           (read (PushbackReader. r)))
+         (catch java.io.FileNotFoundException _
+           (do (error "No config.clj file at" in-dir)
+               (System/exit 0))))))
 
 (defn read-template [path]
-  (read-string (slurp path)))
+  (try (read-string (slurp path))
+       (catch java.io.FileNotFoundException _
+         (do (error "No template file at" path)
+             (System/exit 0)))))
 
 (defn all-page-and-post-files [in-dir]
   "Get all files in the page and post directories"
