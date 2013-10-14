@@ -18,6 +18,9 @@
              :refer (warn error with-log-level)]))
 
 (timbre/set-config! [:timestamp-pattern] "HH:mm:ss")
+(timbre/set-config! [:prefix-fn] (fn [log]
+                                   (str (.toUpperCase (name (:level log)))
+                                        " ["(:timestamp log) "]")))
 
 (def ^:dynamic *in-dir* nil)
 
