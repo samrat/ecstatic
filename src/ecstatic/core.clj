@@ -277,7 +277,12 @@ the doctype."
    (map (fn [file]
           (binding [*ns* (the-ns 'ecstatic.code)
                     *in-dir* in-dir]
-            (load-file (.getPath file))))
+            (try (load-file (.getPath file))
+                 (catch Exception e
+                   (do (error "Could not load"
+                              (.getPath file)
+                              ":" e)
+                       (System/exit 0))))))
         (code-files in-dir))))
 
 (defn create-site
