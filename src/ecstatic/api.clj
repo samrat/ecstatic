@@ -1,9 +1,11 @@
 (ns ecstatic.api
   (:use [ecstatic.core :only [*content* *metadata*]]
         [hiccup.core :only [html]])
-  (:require [ecstatic.core :as core]))
+  (:require [ecstatic.core :as core]
+            [me.raynes.cegdown :as md]))
 
 (def page-url core/page-url)
+(def markdown md/to-html)
 
 (defn all-posts []
   (filter #(re-find #"[/\\]posts[/\\]" (-> % :file .getPath))
