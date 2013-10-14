@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.pprint :as pp]
             [taoensso.timbre :as timbre
-             :refer (warn error with-log-level)])
+             :refer (error)])
   (:import [java.io PushbackReader]))
 
 (defn config [in-dir]

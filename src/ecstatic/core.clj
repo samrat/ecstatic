@@ -15,7 +15,7 @@
             [fs.core :as fs]
             [clj-rss.core :as rss]
             [taoensso.timbre :as timbre
-             :refer (warn error with-log-level)]))
+             :refer (error)]))
 
 (timbre/set-config! [:timestamp-pattern] "HH:mm:ss")
 (timbre/set-config! [:prefix-fn] (fn [log]
