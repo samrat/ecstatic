@@ -5,9 +5,9 @@
         [hiccup.page :only [html5]]
         [clj-time.core :only [year month day]]
         [clj-time.format :only [parse
-                                 unparse
-                                 formatter
-                                 formatters]]
+                                unparse
+                                formatter
+                                formatters]]
         [clj-time.local :only [local-now]]
         [clj-time.coerce :only [to-date]]
         [ecstatic.io])

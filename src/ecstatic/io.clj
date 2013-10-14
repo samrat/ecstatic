@@ -67,18 +67,26 @@
 (defn create-directory-scaffold [base-dir]
   "Create the scaffold for a new website project under 'base-dir'."
   (println "Creating directory scaffold.")
-  (doall (for [dir ["pages"
-                    "posts"
-                    "resources"
-                    "templates"
-                    "snippets"
-                    "code"]]
-           (io/make-parents (io/file base-dir "src" dir "dummy"))))
+  (doseq [dir ["pages"
+               "posts"
+               "resources"
+               "templates"
+               "snippets"
+               "code"]]
+    (io/make-parents (io/file base-dir "src" dir "dummy")))
   (io/make-parents (io/file base-dir "site" "dummy"))
-  (doall (for [path [["templates" "base.clj"]
-                     ["templates" "index.clj"]
-                     ["templates" "page.clj"]
-                     ["templates" "post.clj"]]]
-           (spit (apply io/file base-dir "src" path) "")))
+  (doseq [path [["templates" "base.clj"]
+                ["templates" "index.clj"]
+                ["templates" "page.clj"]
+                ["templates" "post.clj"]]]
+    (spit (apply io/file base-dir "src" path) ""))
+  
+  (let [scaffold-config {:site-name "FIXME: My Ecstatic Site"
+                         :site-url "http://FIXME.com"
+                         :site-description "FIXME: Enter a site description"
+                         :site-author "FIXME: Enter author's name"}]
+    (spit (io/file base-dir "src" "config.clj")
+          (str scaffold-config)))
+  
   (spit (io/file base-dir ".gitignore") "site/*\nsrc/target/*")
   nil)
