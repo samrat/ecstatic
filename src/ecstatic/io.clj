@@ -17,7 +17,7 @@
 (defn read-template [path]
   (try (read-string (slurp path))
        (catch java.io.FileNotFoundException _
-         (do (error "No template file at" path)
+         (do (error "No template file at" (timbre/color-str :red path))
              (System/exit 0)))))
 
 (defn all-page-and-post-files [in-dir]
@@ -62,7 +62,7 @@
      "Get the snippet file with the name 'name'"
      (or (first (filter #(re-find (re-pattern name) (.getPath %))
                         (snippet-files in-dir)))
-         (do (error "No snippet with name" name)
+         (do (error "No snippet with name" (timbre/color-str :red name))
              (System/exit 0)))))
 
 (defn file-type [file]

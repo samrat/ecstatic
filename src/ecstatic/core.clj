@@ -17,10 +17,10 @@
             [taoensso.timbre :as timbre
              :refer (error)]))
 
-(timbre/set-config! [:timestamp-pattern] "HH:mm:ss")
 (timbre/set-config! [:prefix-fn] (fn [log]
-                                   (str (.toUpperCase (name (:level log)))
-                                        " ["(:timestamp log) "]")))
+                                   (str (timbre/color-str
+                                         :red
+                                         (name (:level log))))))
 
 (def ^:dynamic *in-dir* nil)
 
@@ -280,8 +280,8 @@ the doctype."
             (try (load-file (.getPath file))
                  (catch Exception e
                    (do (error "Could not load"
-                              (.getPath file)
-                              ":" e)
+                              (fs/base-name file)
+                              ":" (timbre/color-str :red e))
                        (System/exit 0))))))
         (code-files in-dir))))
 
