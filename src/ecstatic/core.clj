@@ -301,6 +301,7 @@ the doctype."
   (create-site in-dir output)
   (watch (fn [_ file]
            (when (#{".md" ".markdown" ".css" ".clj"} (fs/extension file))
-             (do (println "Regenerating site...")
+             (do (println)
+                 (println "Regenerating site...")
                  (future (create-site in-dir output)))))
          in-dir))
