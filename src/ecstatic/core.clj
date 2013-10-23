@@ -58,6 +58,7 @@
   [in-dir]
   (->> (map (fn [file]
               (-> (assoc (file-metadata file) :file file)
+                  (assoc :content (file-content file))
                   (assoc :url (page-url file))
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
