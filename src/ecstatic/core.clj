@@ -216,11 +216,15 @@ the doctype."
   (doseq [article (concat (all-posts)
                           (all-pages))]
     (let [path (.getPath (:file article))
-          last-modified (.lastModified (:file article))]
+          last-modified (.lastModified (:file article))
+          tags (:tags (file-metadata (:file article)))]
       (when-not (= (get @cache path) last-modified)
         (println "Updated" path)
         (write-single-article article output)
-        (swap! cache assoc path last-modified))))
+        (swap! cache assoc path last-modified)
+        
+        (doseq [tag (conj tags "all")]
+          (swap! cache assoc tag (System/currentTimeMillis))))))
   (spit (str @in-dir "/site.cache") @cache))
 
 (defn copy-resources
@@ -234,24 +238,30 @@ the doctype."
 (defn generate-feed
   "Generate and write RSS feed."
   [posts tag config output]
-  (->> (apply rss/channel-xml
-              (reduce (fn [p post]
-                        (let [metadata (file-metadata post)
-                              date (parse (:date metadata))]
-                          (conj p {:title (:title metadata)
-                                   :link (str (:site-url config)
-                                              (page-url post)
-                                              ;; for feed analytics
-                                              "?utm_source=feed")
-                                   :pubDate (to-date date)
-                                   :author (:site-author config)
-                                   :description (split-and-to-html post)})))
-                      [{:title (:site-name config)
-                        :link (:site-url config)
-                        :description (:site-description config)
-                        :lastBuildDate (to-date (local-now))}]
-                      posts))
-       (spit (str output "/feeds/" tag ".xml"))))
+  (let [xml-path (str output "/feeds/" tag ".xml")
+        xml-modified (.lastModified (clojure.java.io/file xml-path))
+        tag-modified (get @cache tag)]
+    (when (and tag-modified
+               (< xml-modified tag-modified))
+      (println "Updated feed:" (str tag ".xml"))
+      (->> (apply rss/channel-xml
+                  (reduce (fn [p post]
+                            (let [metadata (file-metadata post)
+                                  date (parse (:date metadata))]
+                              (conj p {:title (:title metadata)
+                                       :link (str (:site-url config)
+                                                  (page-url post)
+                                                  ;; for feed analytics
+                                                  "?utm_source=feed")
+                                       :pubDate (to-date date)
+                                       :author (:site-author config)
+                                       :description (split-and-to-html post)})))
+                          [{:title (:site-name config)
+                            :link (:site-url config)
+                            :description (:site-description config)
+                            :lastBuildDate (to-date (local-now))}]
+                          posts))
+           (spit xml-path)))))
 
 (defn generate-main-feed [output]
   (println "Generating main feed...")
