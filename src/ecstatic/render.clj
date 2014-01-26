@@ -1,7 +1,7 @@
 (ns ecstatic.render
   "A Dummy namespace to render the tempates in.
 
-The namespace also provides shortcuts for hiccup namespaces"
+  The namespace also provides shortcuts for hiccup namespaces"
   (:require [hiccup.core :as h]
             [hiccup.element :as helem]
             [hiccup.form :as hform]
