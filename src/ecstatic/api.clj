@@ -7,22 +7,19 @@
 (def page-url core/page-url)
 (def markdown md/to-html)
 
-(defn all-posts []
-  (filter #(re-find #"[/\\]posts[/\\]" (-> % :file .getPath))
-          (core/all-pages core/*in-dir*)))
+(def all-posts core/all-posts)
 
-(defn all-pages []
-  (filter #(re-find #"[/\\]pages[/\\]" (-> % :file .getPath))
-          (core/all-pages core/*in-dir*)))
+(def all-pages core/all-pages)
+
+(def tag-buckets core/tag-buckets)
 
 (defn snippet [name]
-  (core/snippet core/*in-dir* name))
+  (core/snippet name))
 
 (defn with-base-template [template-name hiccup-content]
   "Wrap the hiccup markup 'hiccup-content' in the template with the
 name 'template-name'."
   (let [content (html hiccup-content)]
-    (core/render-template-partially core/*in-dir*
-                                    template-name
+    (core/render-template-partially template-name
                                     content
                                     *metadata*)))
