@@ -234,8 +234,7 @@ the doctype."
                                               "?utm_source=feed")
                                    :pubDate (to-date date)
                                    :author (:site-author config)
-                                   :description
-                                   (split-and-to-html post)})))
+                                   :description (split-and-to-html post)})))
                       [{:title (:site-name config)
                         :link (:site-url config)
                         :description (:site-description config)
