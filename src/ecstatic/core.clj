@@ -209,7 +209,11 @@ the doctype."
                                      nil)))))
 
 (defn write-pages
-  "Write HTML files to location."
+  "Write HTML files to location. Avoids regenerating files by checking
+  the last modified timestamp.
+
+  Always regenerates .clj files and files specified in :always-update
+  in config."
   [output]
   (println "Writing posts and pages...")
   
@@ -226,7 +230,8 @@ the doctype."
         (println "Updated file" path)
         (write-single-article article output)
         (swap! cache assoc path last-modified)
-        
+
+        ;; Update last-modified timestamp for each tag in post
         (doseq [tag (conj tags "all")]
           (swap! cache assoc tag (System/currentTimeMillis))))))
   (spit (str @in-dir "/site.cache") @cache))
