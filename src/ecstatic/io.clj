@@ -1,8 +1,8 @@
 (ns ecstatic.io
   (:require [clojure.java.io :as io]
-            [clojure.pprint :as pp]
             [taoensso.timbre :as timbre
-             :refer (error)])
+             :refer (error)]
+            [fs.core :refer [extension]])
   (:import [java.io PushbackReader]))
 
 (defn config [in-dir]
@@ -20,34 +20,27 @@
          (do (error "No template file at" (timbre/color-str :red path))
              (System/exit 0)))))
 
-(defn all-page-and-post-files [in-dir]
-  "Get all files in the page and post directories"
-  (concat (file-seq (io/file in-dir "pages"))
+(letfn [(file-ending-with? [& endings]
+          (fn [file]
+            ((into #{} endings) (extension file))))]
+  (def markdown-file? (file-ending-predicate ".md" ".markdown"))
+  (def clojure-file? (file-ending-predicate ".clj")))
+
+(defn post-files [in-dir]
+  "Get all files in the posts directories"
+  (filter #(or (markdown-file? %)
+               (clojure-file? %))
           (file-seq (io/file in-dir "posts"))))
 
-(defn- regex-file-seq
-  "Lazily filter a directory based on regex."
-  [regex in-dir]
-  (filter #(re-find regex (.getPath %)) (file-seq (io/file in-dir))))
-
-(defn file-ending-predicate [& endings]
-  (let [regex (re-pattern (pp/cl-format nil ".*\\.(~{~a~^|~})" endings))]
-    (fn [file]
-      (re-find regex (.getPath file)))))
-
-(def markdown-file? (file-ending-predicate "md" "markdown"))
-
-(def clojure-file? (file-ending-predicate "clj"))
-
-(defn md-files [in-dir]
-  "Return a seq of markdown files from in-dir"
-  (filter markdown-file? (all-page-and-post-files in-dir)))
-
-(defn hiccup-files [in-dir]
-  (filter clojure-file? (all-page-and-post-files in-dir)))
-
 (defn page-files [in-dir]
-  (concat (md-files in-dir) (hiccup-files in-dir)))
+  "Get all files in the pages directories"
+  (filter #(or (markdown-file? %)
+               (clojure-file? %))
+          (file-seq (io/file in-dir "pages"))))
+
+(defn all-page-and-post-files [in-dir]
+  "Get all files in the page and post directories"
+  (apply concat ((juxt page-files post-files) in-dir)))
 
 (defn split-file [path]
   "Return [metadata content] from a markdown file."
@@ -72,7 +65,7 @@
 
 (defn code-files [in-dir]
   "Return a sequence of clojure files that represent the custom code in 'code/"
-  (regex-file-seq #".*\.clj" (io/file in-dir "code")))
+  (filter clojure-file? (file-seq (io/file in-dir "code"))))
 
 (defn create-directory-scaffold [base-dir]
   "Create the scaffold for a new website project under 'base-dir'."
