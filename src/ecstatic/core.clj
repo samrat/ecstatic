@@ -63,6 +63,15 @@
 (defn all-pages
   "List of maps containing post-info."
   [in-dir]
+  (map (fn [file]
+         (-> (assoc (file-metadata file) :file file)
+             ;;(assoc :content (file-content file))
+             (assoc :url (page-url file))))
+       (page-files in-dir)))
+
+(defn all-posts
+  "List of maps containing post-info."
+  [in-dir]
   (->> (map (fn [file]
               (-> (assoc (file-metadata file) :file file)
                   (assoc :content (file-content file))
@@ -70,7 +79,7 @@
                   (assoc :human-readable-date (unparse
                                                (formatter "dd MMMMM, YYYY")
                                                (parse (:date (file-metadata file)))))))
-            (page-files in-dir))
+            (post-files in-dir))
        (sort-by :date)
        (reverse)))
 
