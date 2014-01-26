@@ -307,7 +307,6 @@ the doctype."
   (do (reset! ecstatic.core/in-dir in-dir)
       (load-custom-code)
       (prepare-dirs output)
-      (write-index output)
       (reset! cache
               (try (read-string (slurp (str in-dir "/site.cache")))
                    (catch Exception _ nil)))
@@ -320,6 +319,7 @@ the doctype."
           (generate-tag-feed output tag tag-buckets)))
       
       (copy-resources output)
+      (write-index output)
       (println "Successfully compiled site.")))
 
 (defn auto-regen [in-dir output]
