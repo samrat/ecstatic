@@ -161,9 +161,8 @@ the doctype."
   "Render HTML file from markdown file."
   [post in-dir & template]
   (let [file (:file post)
-        template (or (or (first template) nil)
-                     "post")
-        [prev next] (pager (all-pages in-dir) post)]
+        template (or (first template) "post")
+        [prev next] (pager (all-posts in-dir) post)]
     (render-template in-dir
                      template
                      {:content (split-and-to-html in-dir file)}
@@ -175,8 +174,8 @@ the doctype."
                       :human-readable-date (unparse
                              (formatter "dd MMMMM, YYYY")
                              (parse (:date (file-metadata file))))
-                      :prev (or nil prev)
-                      :next (or nil next)
+                      :prev (or prev nil)
+                      :next (or next nil)})))
 
 (defn generate-index
   "Generate content for index.html"
@@ -184,7 +183,7 @@ the doctype."
   (println "Generating index...")
   (render-template in-dir
                    "index"
-                   (all-pages (str in-dir "/posts"))
+                   (all-posts in-dir)
                    {:site-name (:site-name (config in-dir))}))
 
 (defn write-index [in-dir output]
@@ -198,21 +197,21 @@ the doctype."
   (let [output-structure (reduce (fn [dirs file]
                                    (let [slug (page-url file)]
                                      (conj dirs (str output slug))))
-                                 #{(str output "/feeds")} (page-files in-dir))]
+                                 #{(str output "/feeds")} (all-page-and-post-files in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
 (defn write-pages
   "Write HTML files to location."
   [in-dir output]
   (println "Writing posts and pages...")
-  (doall (pmap (fn [post]
-                (let [file (:file post)
-                      slug (page-url file)
-                      metadata (file-metadata file)]
-                  (spit (str output "/" slug "/index.html")
-                        (render-page post in-dir (or (:template metadata)
-                                                     nil)))))
-              (all-pages in-dir))))
+  (doseq [post (concat (all-posts in-dir)
+                       (all-pages in-dir))]
+    (let [file (:file post)
+          slug (page-url file)
+          metadata (file-metadata file)]
+      (spit (str output "/" slug "/index.html")
+            (render-page post in-dir (or (:template metadata)
+                                         nil))))))
 
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
@@ -247,15 +246,13 @@ the doctype."
 
 (defn generate-main-feed [in-dir output]
   (println "Generating main feed...")
-  (generate-feed (map :file (all-pages (str in-dir "/posts")))
+  (generate-feed (map :file (all-posts in-dir))
                  "all"
                  (config in-dir)
                  output))
 
-(defn generate-tag-feed [in-dir output tag]
-  (generate-feed (map :file (get (tag-buckets (all-pages
-                                               (str in-dir "/posts")))
-                                 tag))
+(defn generate-tag-feed [in-dir output tag tag-buckets]
+  (generate-feed (doall (map :file (get tag-buckets tag)))
                  tag
                  (config in-dir)
                  output))
@@ -284,7 +281,11 @@ the doctype."
       (write-index in-dir output)
       (write-pages in-dir output)
       (generate-main-feed in-dir output)
-      (pmap #(generate-tag-feed in-dir output %) (all-tags (all-pages in-dir)))
+      
+      (let [tag-buckets (tag-buckets in-dir)]
+        (doseq [tag (keys tag-buckets)]
+          (generate-tag-feed in-dir output tag tag-buckets)))
+      
       (copy-resources in-dir output)
       (println "Successfully compiled site.")))
 
