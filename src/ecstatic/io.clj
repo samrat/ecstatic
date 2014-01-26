@@ -23,8 +23,8 @@
 (letfn [(file-ending-with? [& endings]
           (fn [file]
             ((into #{} endings) (extension file))))]
-  (def markdown-file? (file-ending-predicate ".md" ".markdown"))
-  (def clojure-file? (file-ending-predicate ".clj")))
+  (def markdown-file? (file-ending-with? ".md" ".markdown"))
+  (def clojure-file? (file-ending-with? ".clj")))
 
 (defn post-files [in-dir]
   "Get all files in the posts directories"
