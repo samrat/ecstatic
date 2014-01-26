@@ -1,8 +1,8 @@
 (ns ecstatic.io
   (:require [clojure.java.io :as io]
-            [taoensso.timbre :as timbre
-             :refer (error)]
-            [fs.core :refer [extension]])
+            [taoensso.timbre :as timbre :refer (error)]
+            [fs.core :refer [extension]]
+            [clojure.pprint :as pp])
   (:import [java.io PushbackReader]))
 
 (defn config [in-dir]
@@ -89,7 +89,7 @@
                          :site-description "FIXME: Enter a site description"
                          :site-author "FIXME: Enter author's name"}]
     (spit (io/file base-dir "src" "config.clj")
-          (with-out-str (clojure.pprint/pprint scaffold-config))))
+          (with-out-str (pp/pprint scaffold-config))))
   
   (spit (io/file base-dir ".gitignore") "site/*\nsrc/target/*")
   nil)
