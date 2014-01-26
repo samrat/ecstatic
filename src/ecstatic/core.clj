@@ -199,18 +199,22 @@ the doctype."
                                  (all-page-and-post-files @in-dir))]
     (doall (map fs/mkdirs output-structure))))
 
+(defn write-single-article
+  [article output]
+  (let [file (:file article)
+        slug (page-url file)
+        metadata (file-metadata file)]
+      (spit (str output "/" slug "/index.html")
+            (render-page article (or (:template metadata)
+                                     nil)))))
+
 (defn write-pages
   "Write HTML files to location."
   [output]
   (println "Writing posts and pages...")
-  (doseq [post (concat (all-posts)
-                       (all-pages))]
-    (let [file (:file post)
-          slug (page-url file)
-          metadata (file-metadata file)]
-      (spit (str output "/" slug "/index.html")
-            (render-page post (or (:template metadata)
-                                  nil))))))
+  (doseq [article (concat (all-posts)
+                          (all-pages))]
+    (write-single-article article output)))
 
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
