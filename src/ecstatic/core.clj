@@ -94,18 +94,18 @@
                (nth posts (inc i)))]
     [prev next]))
 
-(def tag-buckets
+(defn tag-buckets
   "Categorizes posts under tags. Returns {tag1 [post1 post2], tag2
    [post1]}"
-  (memoize
-   (fn [posts]
-     (->> (reduce (fn [m post]
-                    (concat m (interleave (:tags post)
-                                          (repeat (vector post)))))
-                  [] posts)
-          (partition 2)
-          (map #(hash-map (first %) (second %)))
-          (apply merge-with concat)))))
+  [in-dir]
+  (->> (all-posts in-dir)
+       (reduce (fn [m post]
+                 (concat m (interleave (:tags post)
+                                       (repeat (vector post)))))
+               [])
+       (partition 2)
+       (map #(hash-map (first %) (second %)))
+       (apply merge-with concat)))
 
 (defn all-tags
   "Return list of all tags."
