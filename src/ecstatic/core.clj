@@ -218,8 +218,12 @@ the doctype."
     (let [path (.getPath (:file article))
           last-modified (.lastModified (:file article))
           tags (:tags (file-metadata (:file article)))]
-      (when-not (= (get @cache path) last-modified)
-        (println "Updated" path)
+      (when (or (= (fs/extension (:file article)) ".clj")
+                (< (get @cache path) last-modified)
+                (some (set (map (partial str @in-dir)
+                                (:always-update (config @in-dir))))
+                      [path]))
+        (println "Updated file" path)
         (write-single-article article output)
         (swap! cache assoc path last-modified)
         
