@@ -14,8 +14,7 @@
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
             [clj-rss.core :as rss]
-            [taoensso.timbre :as timbre
-             :refer (error)]))
+            [taoensso.timbre :as timbre :refer (error)]))
 
 (timbre/set-config! [:prefix-fn] (fn [log]
                                    (str (timbre/color-str
@@ -23,6 +22,7 @@
                                          (name (:level log))))))
 (def in-dir (atom nil))
 (def ^:dynamic *in-dir* nil)
+(def cache (atom {}))
 
 (defn file-metadata
   "Returns map containing page metadata."
@@ -212,9 +212,16 @@ the doctype."
   "Write HTML files to location."
   [output]
   (println "Writing posts and pages...")
+  
   (doseq [article (concat (all-posts)
                           (all-pages))]
-    (write-single-article article output)))
+    (let [path (.getPath (:file article))
+          last-modified (.lastModified (:file article))]
+      (when-not (= (get @cache path) last-modified)
+        (println "Updated" path)
+        (write-single-article article output)
+        (swap! cache assoc path last-modified))))
+  (spit (str @in-dir "/site.cache") @cache))
 
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
@@ -282,7 +289,11 @@ the doctype."
       (load-custom-code)
       (prepare-dirs output)
       (write-index output)
+      (reset! cache
+              (try (read-string (slurp (str in-dir "/site.cache")))
+                   (catch Exception _ nil)))
       (write-pages output)
+      
       (generate-main-feed output)
       
       (let [tag-buckets (tag-buckets)]
