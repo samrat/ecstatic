@@ -148,21 +148,6 @@ the doctype."
   [in-dir template-name cont meta]
   (html5 (render-template-partially in-dir template-name cont meta)))
 
-(def related-posts
-  ^{:doc "Returns n posts related to `post`."}
-  (memoize
-   (fn [in-dir post n]
-     (->> (:tags post)
-          (map #(get (tag-buckets (all-pages in-dir)) %))
-          (apply concat)
-          (map #(dissoc % :file :tags))
-          (remove #{post})
-          (frequencies)
-          (sort-by second)
-          (take n)
-          (map key)))))
-
-
 (defn render-page
   "Render HTML file from markdown file."
   [post in-dir & template]
@@ -183,10 +168,6 @@ the doctype."
                              (parse (:date (file-metadata file))))
                       :prev (or nil prev)
                       :next (or nil next)
-                      :related-posts (related-posts in-dir
-                                                    post
-                                                    (:num-related-posts
-                                                     (config in-dir)))})))
 
 (defn generate-index
   "Generate content for index.html"
