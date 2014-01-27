@@ -225,6 +225,7 @@ the doctype."
           tags (:tags (file-metadata (:file article)))
           relative-path (second (split path (re-pattern @in-dir)))]
       (when (or (= (fs/extension (:file article)) ".clj")
+                (not (get @cache path))
                 (< (get @cache path) last-modified)
                 (some (set (map (partial str @in-dir)
                                 (:always-update (config @in-dir))))
