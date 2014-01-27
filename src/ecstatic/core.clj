@@ -248,45 +248,39 @@ the doctype."
 ;; Feed
 (defn generate-feed
   "Generate and write RSS feed."
-  [posts tag config output]
-  (let [xml-path (str output "/feeds/" tag ".xml")
-        xml-modified (.lastModified (clojure.java.io/file xml-path))
-        tag-modified (get @cache tag)]
-    (when (and tag-modified
-               (< xml-modified tag-modified))
-      (println "Updated feed:" (str tag ".xml"))
-      (->> (apply rss/channel-xml
-                  (reduce (fn [p post]
-                            (let [metadata (file-metadata post)
-                                  date (parse (:date metadata))]
-                              (conj p {:title (:title metadata)
-                                       :link (str (:site-url config)
-                                                  (page-url post)
-                                                  ;; for feed analytics
-                                                  "?utm_source=feed")
-                                       :pubDate (to-date date)
-                                       :author (:site-author config)
-                                       :description (split-and-to-html post)})))
-                          [{:title (:site-name config)
-                            :link (:site-url config)
-                            :description (:site-description config)
-                            :lastBuildDate (to-date (local-now))}]
-                          posts))
-           (spit xml-path)))))
+  [posts tag config xml-path]
   (println "\tUpdated feed:" (str tag ".xml"))
+  (->> (apply rss/channel-xml
+              (reduce (fn [p post]
+                        (let [metadata (file-metadata post)
+                              date (parse (:date metadata))]
+                          (conj p {:title (:title metadata)
+                                   :link (str (:site-url config)
+                                              (page-url post)
+                                              ;; for feed analytics
+                                              "?utm_source=feed")
+                                   :pubDate (to-date date)
+                                   :author (:site-author config)
+                                   :description (split-and-to-html post)})))
+                      [{:title (:site-name config)
+                        :link (:site-url config)
+                        :description (:site-description config)
+                        :lastBuildDate (to-date (local-now))}]
+                      posts))
+       (spit xml-path)))
 
 (defn generate-main-feed [output]
   (println "Generating main feed...")
   (generate-feed (map :file (all-posts))
                  "all"
                  (config @in-dir)
-                 output))
+                 (str output "/feeds/all.xml")))
 
-(defn generate-tag-feed [output tag tag-buckets]
+(defn generate-tag-feed [xml-path tag tag-buckets]
   (generate-feed (doall (map :file (get tag-buckets tag)))
                  tag
                  (config @in-dir)
-                 output))
+                 xml-path))
 
 (defn load-custom-code
   "Load the custom code that can be placed in 'code/'."
@@ -316,11 +310,16 @@ the doctype."
       (write-pages output)
       
       (generate-main-feed output)
-      
+
       (let [tag-buckets (tag-buckets)]
         (println "Finding updated tag feeds...")
         (doseq [tag (keys tag-buckets)]
-          (generate-tag-feed output tag tag-buckets)))
+          (let [xml-path (str output "/feeds/" tag ".xml")
+                xml-modified (.lastModified (clojure.java.io/file xml-path))
+                tag-modified (get @cache tag)]
+            (when (and tag-modified
+                       (< xml-modified tag-modified))
+              (generate-tag-feed xml-path tag tag-buckets)))))
       
       (copy-resources output)
       (write-index output)
