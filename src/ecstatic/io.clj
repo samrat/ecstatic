@@ -67,29 +67,25 @@
   "Return a sequence of clojure files that represent the custom code in 'code/"
   (filter clojure-file? (file-seq (io/file in-dir "code"))))
 
-(defn create-directory-scaffold [base-dir]
+(def example-site-files ["/src/resources/stylesheets/default.css"
+                         "/src/snippets/ga.clj"
+                         "/src/posts/2014-01-27-lorem-markdownum.md"
+                         "/src/posts/2014-01-01-foo-bar.md"
+                         
+                         "/src/templates/index.clj"
+                         "/src/templates/post.clj"
+                         "/src/templates/base.clj"
+                         "/src/templates/page.clj"
+                         
+                         "/src/code/code.clj"
+                         "/src/config.clj"
+                         
+                         "/src/pages/tags.clj"
+                         "/src/pages/archives.clj"])
+
+(defn create-directory-scaffold [site-name]
   "Create the scaffold for a new website project under 'base-dir'."
   (println "Creating directory scaffold.")
-  (doseq [dir ["pages"
-               "posts"
-               "resources"
-               "templates"
-               "snippets"
-               "code"]]
-    (io/make-parents (io/file base-dir "src" dir "dummy")))
-  (io/make-parents (io/file base-dir "site" "dummy"))
-  (doseq [path [["templates" "base.clj"]
-                ["templates" "index.clj"]
-                ["templates" "page.clj"]
-                ["templates" "post.clj"]]]
-    (spit (apply io/file base-dir "src" path) ""))
-  
-  (let [scaffold-config {:site-name "FIXME: My Ecstatic Site"
-                         :site-url "http://FIXME.com"
-                         :site-description "FIXME: Enter a site description"
-                         :site-author "FIXME: Enter author's name"}]
-    (spit (io/file base-dir "src" "config.clj")
-          (with-out-str (pp/pprint scaffold-config))))
-  
-  (spit (io/file base-dir ".gitignore") "site/*\nsrc/target/*")
-  nil)
+  (doseq [f example-site-files]
+    (io/make-parents (str site-name f))
+    (spit (str site-name f) (slurp (io/resource (str "example" f))))))
