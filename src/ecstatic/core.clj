@@ -272,7 +272,7 @@ the doctype."
 
 (defn generate-main-feed [output]
   (println "Generating main feed...")
-  (generate-feed (map :file (all-posts))
+  (generate-feed (post-files @in-dir)
                  "all"
                  (config @in-dir)
                  (str output "/feeds/all.xml")))
