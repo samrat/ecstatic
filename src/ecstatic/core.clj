@@ -14,7 +14,8 @@
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
             [clj-rss.core :as rss]
-            [taoensso.timbre :as timbre :refer (error)]))
+            [taoensso.timbre :as timbre :refer (error info)]
+            [clojure.string :refer [split]]))
 
 (timbre/set-config! [:prefix-fn] (fn [log]
                                    (str (timbre/color-str
@@ -215,19 +216,20 @@ the doctype."
   Always regenerates .clj files and files specified in :always-update
   in config."
   [output]
-  (println "Writing posts and pages...")
+  (println "Finding updated posts and pages...")
   
   (doseq [article (concat (all-posts)
                           (all-pages))]
     (let [path (.getPath (:file article))
           last-modified (.lastModified (:file article))
-          tags (:tags (file-metadata (:file article)))]
+          tags (:tags (file-metadata (:file article)))
+          relative-path (second (split path (re-pattern @in-dir)))]
       (when (or (= (fs/extension (:file article)) ".clj")
                 (< (get @cache path) last-modified)
                 (some (set (map (partial str @in-dir)
                                 (:always-update (config @in-dir))))
                       [path]))
-        (println "Updated file" path)
+        (println "\tUpdated" relative-path)
         (write-single-article article output)
         (swap! cache assoc path last-modified)
 
@@ -271,6 +273,7 @@ the doctype."
                             :lastBuildDate (to-date (local-now))}]
                           posts))
            (spit xml-path)))))
+  (println "\tUpdated feed:" (str tag ".xml"))
 
 (defn generate-main-feed [output]
   (println "Generating main feed...")
@@ -315,6 +318,7 @@ the doctype."
       (generate-main-feed output)
       
       (let [tag-buckets (tag-buckets)]
+        (println "Finding updated tag feeds...")
         (doseq [tag (keys tag-buckets)]
           (generate-tag-feed output tag tag-buckets)))
       
