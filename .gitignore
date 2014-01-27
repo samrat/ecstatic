@@ -10,3 +10,5 @@ pom.xml
 .lein-plugins
 .lein-repl-history
 .nrepl-port
+/resources/example/.gitignore
+/resources/example/src/site.cache
