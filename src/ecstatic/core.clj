@@ -22,6 +22,7 @@
                                          :red
                                          (name (:level log))))))
 (def in-dir (atom nil))
+(def output (atom nil))
 (def ^:dynamic *in-dir* nil)
 (def cache (atom {}))
 
@@ -209,6 +210,20 @@ the doctype."
             (render-page article (or (:template metadata)
                                      nil)))))
 
+(defn file-updated?
+  [file]
+  (let [last-modified (.lastModified file)
+        output-path (str @output (page-url file) "/index.html")
+        output-file (clojure.java.io/file output-path)
+        output-last-modified (.lastModified output-file)
+
+        metadata (file-metadata file)
+        template (or (:template metadata) "post")
+        template-path (str @in-dir "/templates/" template ".clj")
+        template-last-modified (.lastModified (clojure.java.io/file template-path))]
+    (or (< output-last-modified last-modified)
+        (< output-last-modified template-last-modified))))
+
 (defn write-pages
   "Write HTML files to location. Avoids regenerating files by checking
   the last modified timestamp.
@@ -220,23 +235,26 @@ the doctype."
   
   (doseq [article (concat (all-posts)
                           (all-pages))]
-    (let [path (.getPath (:file article))
-          last-modified (.lastModified (:file article))
-          tags (:tags (file-metadata (:file article)))
+    (let [file (:file article)
+          path (.getPath file)
+          last-modified (.lastModified file)
+          metadata (file-metadata file)
+          tags (:tags metadata)
           relative-path (second (split path (re-pattern @in-dir)))]
+
       (when (or (= (fs/extension (:file article)) ".clj")
-                (not (get @cache path))
-                (< (get @cache path) last-modified)
+
+                (file-updated? file)
+                
                 (some (set (map (partial str @in-dir)
                                 (:always-update (config @in-dir))))
                       [path]))
-        (println "\tUpdated" relative-path)
+        (println "\tUpdated" (page-url file))
         (write-single-article article output)
-        (swap! cache assoc path last-modified)
 
         ;; Update last-modified timestamp for each tag in post
         (doseq [tag (conj tags "all")]
-          (swap! cache assoc tag (System/currentTimeMillis))))))
+          (swap! cache assoc-in [:tags tag] (System/currentTimeMillis))))))
   (spit (str @in-dir "/site.cache") @cache))
 
 (defn copy-resources
@@ -303,6 +321,7 @@ the doctype."
   "Read and create posts."
   [in-dir output]
   (do (reset! ecstatic.core/in-dir in-dir)
+      (reset! ecstatic.core/output output)
       (load-custom-code)
       (prepare-dirs output)
       (reset! cache
@@ -317,7 +336,7 @@ the doctype."
         (doseq [tag (keys tag-buckets)]
           (let [xml-path (str output "/feeds/" tag ".xml")
                 xml-modified (.lastModified (clojure.java.io/file xml-path))
-                tag-modified (get @cache tag)]
+                tag-modified (get-in @cache [:tags tag])]
             (when (and tag-modified
                        (< xml-modified tag-modified))
               (generate-tag-feed xml-path tag tag-buckets)))))
