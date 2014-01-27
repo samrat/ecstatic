@@ -15,5 +15,6 @@
                  [me.raynes/cegdown "0.1.0"]
                  [com.taoensso/timbre "2.6.2"]]
   :main ecstatic.main
+  :aot :all
   :bin {:name "ecstatic"
         :bin-path "~/bin"})
