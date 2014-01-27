@@ -14,8 +14,8 @@
   (:require [me.raynes.cegdown :as md]
             [fs.core :as fs]
             [clj-rss.core :as rss]
-            [taoensso.timbre :as timbre
-             :refer (error)]))
+            [taoensso.timbre :as timbre :refer (error info)]
+            [clojure.string :refer [split]]))
 
 (timbre/set-config! [:prefix-fn] (fn [log]
                                    (str (timbre/color-str
@@ -23,6 +23,7 @@
                                          (name (:level log))))))
 (def in-dir (atom nil))
 (def ^:dynamic *in-dir* nil)
+(def cache (atom {}))
 
 (defn file-metadata
   "Returns map containing page metadata."
@@ -209,12 +210,33 @@ the doctype."
                                      nil)))))
 
 (defn write-pages
-  "Write HTML files to location."
+  "Write HTML files to location. Avoids regenerating files by checking
+  the last modified timestamp.
+
+  Always regenerates .clj files and files specified in :always-update
+  in config."
   [output]
-  (println "Writing posts and pages...")
+  (println "Finding updated posts and pages...")
+  
   (doseq [article (concat (all-posts)
                           (all-pages))]
-    (write-single-article article output)))
+    (let [path (.getPath (:file article))
+          last-modified (.lastModified (:file article))
+          tags (:tags (file-metadata (:file article)))
+          relative-path (second (split path (re-pattern @in-dir)))]
+      (when (or (= (fs/extension (:file article)) ".clj")
+                (< (get @cache path) last-modified)
+                (some (set (map (partial str @in-dir)
+                                (:always-update (config @in-dir))))
+                      [path]))
+        (println "\tUpdated" relative-path)
+        (write-single-article article output)
+        (swap! cache assoc path last-modified)
+
+        ;; Update last-modified timestamp for each tag in post
+        (doseq [tag (conj tags "all")]
+          (swap! cache assoc tag (System/currentTimeMillis))))))
+  (spit (str @in-dir "/site.cache") @cache))
 
 (defn copy-resources
   "Copy in-dir/resources containing js,css and images"
@@ -226,7 +248,8 @@ the doctype."
 ;; Feed
 (defn generate-feed
   "Generate and write RSS feed."
-  [posts tag config output]
+  [posts tag config xml-path]
+  (println "\tUpdated feed:" (str tag ".xml"))
   (->> (apply rss/channel-xml
               (reduce (fn [p post]
                         (let [metadata (file-metadata post)
@@ -244,20 +267,20 @@ the doctype."
                         :description (:site-description config)
                         :lastBuildDate (to-date (local-now))}]
                       posts))
-       (spit (str output "/feeds/" tag ".xml"))))
+       (spit xml-path)))
 
 (defn generate-main-feed [output]
   (println "Generating main feed...")
   (generate-feed (map :file (all-posts))
                  "all"
                  (config @in-dir)
-                 output))
+                 (str output "/feeds/all.xml")))
 
-(defn generate-tag-feed [output tag tag-buckets]
+(defn generate-tag-feed [xml-path tag tag-buckets]
   (generate-feed (doall (map :file (get tag-buckets tag)))
                  tag
                  (config @in-dir)
-                 output))
+                 xml-path))
 
 (defn load-custom-code
   "Load the custom code that can be placed in 'code/'."
@@ -281,15 +304,25 @@ the doctype."
   (do (reset! ecstatic.core/in-dir in-dir)
       (load-custom-code)
       (prepare-dirs output)
-      (write-index output)
+      (reset! cache
+              (try (read-string (slurp (str in-dir "/site.cache")))
+                   (catch Exception _ nil)))
       (write-pages output)
-      (generate-main-feed output)
       
+      (generate-main-feed output)
+
       (let [tag-buckets (tag-buckets)]
+        (println "Finding updated tag feeds...")
         (doseq [tag (keys tag-buckets)]
-          (generate-tag-feed output tag tag-buckets)))
+          (let [xml-path (str output "/feeds/" tag ".xml")
+                xml-modified (.lastModified (clojure.java.io/file xml-path))
+                tag-modified (get @cache tag)]
+            (when (and tag-modified
+                       (< xml-modified tag-modified))
+              (generate-tag-feed xml-path tag tag-buckets)))))
       
       (copy-resources output)
+      (write-index output)
       (println "Successfully compiled site.")))
 
 (defn auto-regen [in-dir output]

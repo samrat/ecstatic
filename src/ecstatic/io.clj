@@ -22,7 +22,7 @@
 
 (letfn [(file-ending-with? [& endings]
           (fn [file]
-            ((into #{} endings) (extension file))))]
+            ((set endings) (extension file))))]
   (def markdown-file? (file-ending-with? ".md" ".markdown"))
   (def clojure-file? (file-ending-with? ".clj")))
 
