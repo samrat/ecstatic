@@ -8,7 +8,7 @@
 
  [:body
   [:div {:id "header"}
-   [:div {:id "logo"} (:site-name *metadata*)]
+   [:div {:id "logo"} [:a {:href "/"} (:site-name *metadata*)]]
    [:div {:id "navigation"}
     [:a {:href "/"} "Home"]
     [:a {:href "/tags"} "Tags"]
